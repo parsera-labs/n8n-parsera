@@ -235,7 +235,7 @@ export class AiScraper implements INodeType {
 					},
 					{
 						name: 'Agent Scrape',
-						value: 'agentScrape',
+						value: 'agent',
 					},
 				],
 				default: 'extractor',
@@ -253,7 +253,7 @@ export class AiScraper implements INodeType {
 				options: [
 					{
 						name: 'Extract from URL',
-						value: 'extractData',
+						value: 'extractUrl',
 						description: 'Extract data from a webpage using URL',
 						action: 'Extract from URL',
 						routing: {
@@ -302,7 +302,7 @@ export class AiScraper implements INodeType {
 					},
 
 				],
-				default: 'extractData',
+				default: 'extractUrl',
 			},
 			{
 				displayName: 'Operation',
@@ -311,7 +311,7 @@ export class AiScraper implements INodeType {
 				noDataExpression: true,
 				displayOptions: {
 					show: {
-						resource: ['agentScrape'],
+						resource: ['agent'],
 					}
 				},
 				options: [
@@ -368,7 +368,7 @@ export class AiScraper implements INodeType {
 				description: 'URL of the webpage to extract data from',
 				displayOptions: {
 					show: {
-						operation: ['extractData', 'agentScrape'], // Updated
+						operation: ['extractUrl', 'agentScrape'], // Updated
 					},
 				},
 			},
@@ -442,7 +442,7 @@ export class AiScraper implements INodeType {
 				],
 				displayOptions: {
 					show: {
-						operation: ['extractData', 'parseHtml'],
+						operation: ['extractUrl', 'parseHtml'],
 					},
 				},
 			},
@@ -458,7 +458,7 @@ export class AiScraper implements INodeType {
 				],
 				displayOptions: {
 					show: {
-						operation: ['extractData', 'parseHtml'],
+						operation: ['extractUrl', 'parseHtml'],
 					},
 				},
 			},
@@ -473,7 +473,7 @@ export class AiScraper implements INodeType {
 				default: 'UnitedStates',
 				displayOptions: {
 					show: {
-						operation: ['extractData', 'agentScrape'],
+						operation: ['extractUrl', 'agentScrape'],
 					},
 				},
 			},
@@ -485,7 +485,7 @@ export class AiScraper implements INodeType {
 				description: 'Optional. Provide cookies as a JSON array.',
 				displayOptions: {
 					show: {
-						operation: ['extractData', 'agentScrape'],
+						operation: ['extractUrl', 'agentScrape'],
 					},
 				},
 			},
