@@ -9,21 +9,12 @@ import { ProxyCountryList, ProxyCountryOption } from './proxy-countries.data';
 
 export class AiScraper implements INodeType {
 
-	static async prepareExtractRequestBody(
-		this: IExecuteSingleFunctions,
-		requestOptions: IHttpRequestOptions
-	): Promise<IHttpRequestOptions> {
-		const node = this.getNode();
-		const currentItemIndex = this.getItemIndex();
-
-		// Ensure body exists
-		if (!requestOptions.body || typeof requestOptions.body !== 'object') {
-			requestOptions.body = {};
-		}
-		const body = requestOptions.body as Record<string, any>;
-
-		// --- Attributes Logic ---
-		const attributesParam = this.getNodeParameter('attributes', currentItemIndex) as {
+	private static _addAttributesToBody(
+		context: IExecuteSingleFunctions,
+		body: Record<string, any>
+	): void {
+		const currentItemIndex = context.getItemIndex();
+		const attributesParam = context.getNodeParameter('attributes', currentItemIndex) as {
 			fieldValues: Array<{
 				fieldName?: string;
 				fieldType?: string;
@@ -42,6 +33,24 @@ export class AiScraper implements INodeType {
 			}
 		}
 		body.attributes = transformedAttributes;
+	}
+
+
+	static async prepareExtractRequestBody(
+		this: IExecuteSingleFunctions,
+		requestOptions: IHttpRequestOptions
+	): Promise<IHttpRequestOptions> {
+		const node = this.getNode();
+		const currentItemIndex = this.getItemIndex();
+
+		// Ensure body exists
+		if (!requestOptions.body || typeof requestOptions.body !== 'object') {
+			requestOptions.body = {};
+		}
+		const body = requestOptions.body as Record<string, any>;
+
+		// --- Attributes Logic ---
+		AiScraper._addAttributesToBody(this, body);
 
 		// --- Cookies Logic ---
 		const cookiesString = this.getNodeParameter('cookies', currentItemIndex) as string;
@@ -61,6 +70,25 @@ export class AiScraper implements INodeType {
 		} else {
 			body.cookies = parsedCookies;
 		}
+
+		return requestOptions;
+	}
+
+	// Method to prepare request body with attributes only (no cookies)
+	static async prepareAttributesForRequestBody(
+		this: IExecuteSingleFunctions,
+		requestOptions: IHttpRequestOptions
+	): Promise<IHttpRequestOptions> {
+		// Ensure body exists
+		if (!requestOptions.body || typeof requestOptions.body !== 'object') {
+			requestOptions.body = {};
+		}
+		const body = requestOptions.body as Record<string, any>;
+
+		// --- Attributes Logic ---
+		AiScraper._addAttributesToBody(this, body);
+
+		// No cookies processing in this method
 
 		return requestOptions;
 	}
@@ -92,34 +120,10 @@ export class AiScraper implements INodeType {
 		},
 		properties: [
 			{
-				displayName: 'Resource',
-				name: 'resource',
-				type: 'options',
-				noDataExpression: true,
-				options: [
-					{
-						name: 'Extract',
-						value: 'extract',
-						description: 'Extract data from a webpage',
-					},
-					{
-						name: 'Parse',
-						value: 'parse',
-						description: 'Parse data from HTML or text content',
-					},
-				],
-				default: 'extract',
-			},
-			{
 				displayName: 'Operation',
 				name: 'operation',
 				type: 'options',
 				noDataExpression: true,
-				displayOptions: {
-					show: {
-						resource: ['extract'],
-					},
-				},
 				options: [
 					{
 						name: 'Extract Data',
@@ -139,7 +143,29 @@ export class AiScraper implements INodeType {
 							},
 							send: {
 								preSend: [
-									AiScraper.prepareExtractRequestBody,
+									AiScraper.prepareExtractRequestBody, // This handles both attributes and cookies
+								],
+							},
+						},
+					},
+					{
+						name: 'Parse HTML',
+						value: 'parseHtml',
+						description: 'Parse data from the raw HTML input',
+						action: 'Parse HTML',
+						routing: {
+							request: {
+								method: 'POST',
+								url: '=/parse',
+								body: {
+									content: '={{$parameter["content"]}}',
+									mode: '={{$parameter["mode"]}}',
+									// 'attributes' will be added by the preSend function
+								}
+							},
+							send: {
+								preSend: [
+									AiScraper.prepareAttributesForRequestBody, // Uses the method for attributes only
 								],
 							},
 						},
@@ -156,8 +182,23 @@ export class AiScraper implements INodeType {
 				description: 'URL of the webpage to extract data from',
 				displayOptions: {
 					show: {
-						resource: ['extract'],
 						operation: ['extractData'],
+					},
+				},
+			},
+			{
+				displayName: 'Content (HTML or Text)',
+				name: 'content',
+				type: 'string',
+				default: '',
+				required: true,
+				typeOptions: {
+                    rows: 5,
+                },
+				description: 'Raw HTML or text content to extract data from',
+				displayOptions: {
+					show: {
+						operation: ['parseHtml'],
 					},
 				},
 			},
@@ -215,8 +256,7 @@ export class AiScraper implements INodeType {
 				],
 				displayOptions: {
 					show: {
-						resource: ['extract'],
-						operation: ['extractData'],
+						operation: ['extractData', 'parseHtml'],
 					},
 				},
 			},
@@ -232,8 +272,7 @@ export class AiScraper implements INodeType {
 				],
 				displayOptions: {
 					show: {
-						resource: ['extract'],
-						operation: ['extractData'],
+						operation: ['extractData', 'parseHtml'],
 					},
 				},
 			},
@@ -248,7 +287,6 @@ export class AiScraper implements INodeType {
 				default: 'UnitedStates',
 				displayOptions: {
 					show: {
-						resource: ['extract'],
 						operation: ['extractData'],
 					},
 				},
@@ -261,7 +299,6 @@ export class AiScraper implements INodeType {
 				description: 'Optional. Provide cookies as a JSON array string.',
 				displayOptions: {
 					show: {
-						resource: ['extract'],
 						operation: ['extractData'],
 					},
 				},
