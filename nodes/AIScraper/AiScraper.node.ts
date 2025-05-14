@@ -151,7 +151,7 @@ export class AiScraper implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'AI Scraper',
 		name: 'aiScraper',
-		icon: 'file:aiscraper.svg',
+		icon: 'file:aiscraper.png',
 		group: ['transform'],
 		version: 1,
 		subtitle: '={{$parameter["operation"] + ": " + $parameter["resource"]}}',
