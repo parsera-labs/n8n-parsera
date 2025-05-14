@@ -49,11 +49,11 @@ export class AiScraper implements INodeType {
 				);
 			}
 			if (fieldDescription === '') {
-			    throw new NodeOperationError(
-			        node,
-			        `Attribute "${fieldName}" (at index ${index}) has an empty Field Description.`,
-			        { itemIndex: currentItemIndex }
-			    );
+				throw new NodeOperationError(
+					node,
+					`Attribute "${fieldName}" (at index ${index}) has an empty Field Description.`,
+					{ itemIndex: currentItemIndex }
+				);
 			}
 
 			transformedAttributes[fieldName] = {
@@ -63,6 +63,37 @@ export class AiScraper implements INodeType {
 		}
 
 		body.attributes = transformedAttributes;
+	}
+
+	// New helper method for handling cookies
+	private static _addCookiesToBody(
+		context: IExecuteSingleFunctions,
+		body: Record<string, any>
+	): void {
+		const currentItemIndex = context.getItemIndex();
+		const node = context.getNode();
+		const cookiesStringParam = context.getNodeParameter('cookies', currentItemIndex) as string;
+
+		if (cookiesStringParam && cookiesStringParam.trim() !== '') {
+			let parsedCookies;
+			try {
+				parsedCookies = JSON.parse(cookiesStringParam);
+			} catch (error: any) {
+				throw new NodeOperationError(node, `Invalid JSON in Cookies field: ${error.message}`, { itemIndex: currentItemIndex });
+			}
+
+			if (!Array.isArray(parsedCookies)) {
+				throw new NodeOperationError(node, 'Cookies field must be a JSON array.', { itemIndex: currentItemIndex });
+			}
+
+			if (parsedCookies.length === 0) {
+				body.cookies = null;
+			} else {
+				body.cookies = parsedCookies;
+			}
+		} else {
+			body.cookies = null;
+		}
 	}
 
 
@@ -85,30 +116,7 @@ export class AiScraper implements INodeType {
 		body.url = urlFromBody.trim();
 
 		AiScraper._addAttributesToBody(this, body);
-
-		// --- Cookies Logic ---
-		const cookiesStringParam = this.getNodeParameter('cookies', currentItemIndex) as string;
-		if (cookiesStringParam && cookiesStringParam.trim() !== '') { // Check if cookies are provided
-			let parsedCookies;
-			try {
-				parsedCookies = JSON.parse(cookiesStringParam);
-			} catch (error: any) {
-				throw new NodeOperationError(node, `Invalid JSON in Cookies field: ${error.message}`, { itemIndex: currentItemIndex });
-			}
-
-			if (!Array.isArray(parsedCookies)) {
-				throw new NodeOperationError(node, 'Cookies field must be a JSON array.', { itemIndex: currentItemIndex });
-			}
-
-			if (parsedCookies.length === 0) {
-				body.cookies = null;
-			} else {
-				body.cookies = parsedCookies;
-			}
-		} else {
-			body.cookies = null;
-		}
-
+		AiScraper._addCookiesToBody(this, body); // Use the refactored helper method
 
 		return requestOptions;
 	}
@@ -132,6 +140,39 @@ export class AiScraper implements INodeType {
 		body.content = contentFromBody.trim();
 
 		AiScraper._addAttributesToBody(this, body);
+
+		return requestOptions;
+	}
+
+	// New preSend function for Agent Scrape operation
+	static async prepareScrapeRequestBody(
+		this: IExecuteSingleFunctions,
+		requestOptions: IHttpRequestOptions
+	): Promise<IHttpRequestOptions> {
+		const node = this.getNode();
+		const currentItemIndex = this.getItemIndex();
+
+		if (!requestOptions.body || typeof requestOptions.body !== 'object') {
+			requestOptions.body = {};
+		}
+		const body = requestOptions.body as Record<string, any>;
+
+		// Agent Name validation (value comes from routing `body.name`)
+		const agentNameFromBody = body.name;
+		if (typeof agentNameFromBody !== 'string' || !agentNameFromBody.trim()) {
+			throw new NodeOperationError(node, 'Agent Name is required for Agent Scrape operation.', { itemIndex: currentItemIndex });
+		}
+		body.name = agentNameFromBody.trim();
+
+		// URL validation (value comes from routing `body.url`)
+		const urlFromBody = body.url;
+		if (typeof urlFromBody !== 'string' || !urlFromBody.trim()) {
+			throw new NodeOperationError(node, 'URL is required for Agent Scrape operation.', { itemIndex: currentItemIndex });
+		}
+		body.url = urlFromBody.trim();
+
+		// Add cookies using the helper method
+		AiScraper._addCookiesToBody(this, body);
 
 		return requestOptions;
 	}
@@ -183,20 +224,42 @@ export class AiScraper implements INodeType {
 		},
 		properties: [
 			{
-				displayName: 'Operation',
-				name: 'operation',
+				displayName: 'Resource',
+				name: 'resource',
 				type: 'options',
 				noDataExpression: true,
 				options: [
 					{
-						name: 'Extract Data',
+						name: 'Extractor',
+						value: 'extractor',
+					},
+					{
+						name: 'Agent Scrape',
+						value: 'agentScrape',
+					},
+				],
+				default: 'extractor',
+			},
+			{
+				displayName: 'Operation',
+				name: 'operation',
+				type: 'options',
+				noDataExpression: true,
+				displayOptions: {
+					show: {
+						resource: ['extractor'],
+					}
+				},
+				options: [
+					{
+						name: 'Extract from URL',
 						value: 'extractData',
 						description: 'Extract data from a webpage using URL',
-						action: 'Extract data',
+						action: 'Extract from URL',
 						routing: {
 							request: {
 								method: 'POST',
-								url: '=/extract',
+								url: '/extract',
 								body: {
 									url: '={{$parameter["url"]}}',
 									mode: '={{$parameter["mode"]}}',
@@ -221,7 +284,7 @@ export class AiScraper implements INodeType {
 						routing: {
 							request: {
 								method: 'POST',
-								url: '=/parse',
+								url: '/parse',
 								body: {
 									content: '={{$parameter["content"]}}',
 									mode: '={{$parameter["mode"]}}',
@@ -237,8 +300,64 @@ export class AiScraper implements INodeType {
 							},
 						},
 					},
+
 				],
 				default: 'extractData',
+			},
+			{
+				displayName: 'Operation',
+				name: 'operation',
+				type: 'options',
+				noDataExpression: true,
+				displayOptions: {
+					show: {
+						resource: ['agentScrape'],
+					}
+				},
+				options: [
+					{
+						name: 'Agent Scrape',
+						value: 'agentScrape',
+						description: 'Scrape webpage with pre-configured agent',
+						action: 'Scrape with Agent',
+						routing: {
+							request: {
+								method: 'POST',
+								baseURL: 'https://agents.parsera.org/v1', // Specific baseURL for this operation
+								url: '/scrape',
+								body: {
+									name: '={{$parameter["agentName"]}}',
+									url: '={{$parameter["url"]}}',
+									proxy_country: '={{$parameter["proxyCountry"]}}',
+									// cookies are added by preSend function
+								},
+							},
+							send: {
+								preSend: [
+									AiScraper.prepareScrapeRequestBody,
+								],
+							},
+							output: {
+								postReceive: [AiScraper.unpackResponseData], // Reusing existing unpacker
+							},
+						},
+					},
+				],
+				default: 'agentScrape',
+			},
+			// New property for Agent Scrape
+			{
+				displayName: 'Agent Name',
+				name: 'agentName',
+				type: 'string',
+				default: '',
+				required: true,
+				description: 'Name of the agent to use for scraping',
+				displayOptions: {
+					show: {
+						operation: ['agentScrape'],
+					},
+				},
 			},
 			{
 				displayName: 'URL',
@@ -249,7 +368,7 @@ export class AiScraper implements INodeType {
 				description: 'URL of the webpage to extract data from',
 				displayOptions: {
 					show: {
-						operation: ['extractData'],
+						operation: ['extractData', 'agentScrape'], // Updated
 					},
 				},
 			},
@@ -260,8 +379,8 @@ export class AiScraper implements INodeType {
 				default: '',
 				required: true,
 				typeOptions: {
-                    rows: 5,
-                },
+					rows: 5,
+				},
 				description: 'Raw HTML or text content to extract data from',
 				displayOptions: {
 					show: {
@@ -354,7 +473,7 @@ export class AiScraper implements INodeType {
 				default: 'UnitedStates',
 				displayOptions: {
 					show: {
-						operation: ['extractData'],
+						operation: ['extractData', 'agentScrape'],
 					},
 				},
 			},
@@ -366,7 +485,7 @@ export class AiScraper implements INodeType {
 				description: 'Optional. Provide cookies as a JSON array.',
 				displayOptions: {
 					show: {
-						operation: ['extractData'],
+						operation: ['extractData', 'agentScrape'],
 					},
 				},
 			},
