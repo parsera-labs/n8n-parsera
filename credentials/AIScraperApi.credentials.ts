@@ -1,9 +1,9 @@
-import { ICredentialType, INodeProperties } from 'n8n-workflow';
+import { IAuthenticateGeneric, ICredentialType, INodeProperties } from 'n8n-workflow';
 
 export class AIScraperApi implements ICredentialType {
     name = 'aiScraperApi';
     displayName = 'AI Scraper API';
-    documentationUrl = 'https://docs.parsera.org/'; // Replace if a more specific docs URL for API keys exists
+    documentationUrl = 'https://docs.parsera.org/api/getting-started/';
     properties: INodeProperties[] = [
         {
             displayName: 'API Key',
@@ -17,4 +17,12 @@ export class AIScraperApi implements ICredentialType {
             description: 'Your Parsera API Key',
         },
     ];
+    authenticate: IAuthenticateGeneric = {
+		type: 'generic',
+        properties: {
+            headers: {
+                'X-API-KEY': '={{$credentials.apiKey}}',
+            },
+        },
+	};
 }
