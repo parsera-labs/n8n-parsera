@@ -8,12 +8,12 @@
 	"resources": {
 		"credentialDocumentation": [
 			{
-				"url": ""
+				"url": "https://docs.parsera.org/api/getting-started/"
 			}
 		],
 		"primaryDocumentation": [
 			{
-				"url": ""
+				"url": "https://docs.parsera.org/api/getting-started/"
 			}
 		]
 	}

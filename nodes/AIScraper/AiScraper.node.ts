@@ -14,24 +14,64 @@ export class AiScraper implements INodeType {
 		body: Record<string, any>
 	): void {
 		const currentItemIndex = context.getItemIndex();
+		const node = context.getNode();
 		const attributesParam = context.getNodeParameter('attributes', currentItemIndex) as {
 			fieldValues: Array<{
-				fieldName?: string;
-				fieldType?: string;
-				fieldDescription?: string;
+				fieldName: string; // Marked as required in definition
+				fieldType: string; // Marked as required in definition
+				fieldDescription: string; // Marked as required in definition
 			}>
 		};
 
 		const fieldValues = (attributesParam && attributesParam.fieldValues) ? attributesParam.fieldValues : [];
-		const transformedAttributes: { [key: string]: { description: string; type: string } } = {};
-		for (const item of fieldValues) {
-			if (item.fieldName && item.fieldType && item.fieldDescription) {
-				transformedAttributes[item.fieldName] = {
-					description: item.fieldDescription,
-					type: item.fieldType
-				};
-			}
+
+		if (fieldValues.length === 0) {
+			throw new NodeOperationError(
+				node,
+				'At least one attribute is required. Please add attributes to extract.',
+				{ itemIndex: currentItemIndex }
+			);
 		}
+
+		const transformedAttributes: { [key: string]: { description: string; type: string } } = {};
+		for (const [index, item] of fieldValues.entries()) {
+			const fieldName = item.fieldName.trim();
+			const fieldDescription = item.fieldDescription.trim();
+
+			if (fieldName === '') {
+				throw new NodeOperationError(
+					node,
+					`Attribute at index ${index} has an empty or whitespace-only Field Name. Field Name cannot be empty.`,
+					{ itemIndex: currentItemIndex }
+				);
+			}
+			// Optional: check if fieldDescription is empty, if the API requires it.
+			// if (fieldDescription === '') {
+			//     throw new NodeOperationError(
+			//         node,
+			//         `Attribute "${fieldName}" (at index ${index}) has an empty or whitespace-only Field Description.`,
+			//         { itemIndex: currentItemIndex }
+			//     );
+			// }
+
+			transformedAttributes[fieldName] = {
+				description: fieldDescription,
+				type: item.fieldType
+			};
+		}
+
+		// This check would be redundant if the loop's fieldName check throws,
+		// but good as a safeguard if logic changes (e.g., empty fieldNames were skipped instead of throwing).
+		// Given the current logic, Object.keys(transformedAttributes).length will be > 0 if fieldValues.length > 0
+		// and all fieldNames are valid.
+		if (Object.keys(transformedAttributes).length === 0) {
+			throw new NodeOperationError(
+				node,
+				'No valid attributes were processed. Ensure all attributes have a non-empty Field Name.',
+				{ itemIndex: currentItemIndex }
+			);
+		}
+
 		body.attributes = transformedAttributes;
 	}
 
@@ -45,18 +85,25 @@ export class AiScraper implements INodeType {
 
 		// Ensure body exists
 		if (!requestOptions.body || typeof requestOptions.body !== 'object') {
-			requestOptions.body = {};
+			requestOptions.body = {}; // Should not happen if routing.request.body is defined
 		}
 		const body = requestOptions.body as Record<string, any>;
+
+		// --- Validate URL ---
+		const urlFromBody = body.url; // Comes from '={{$parameter["url"]}}'
+		if (typeof urlFromBody !== 'string' || !urlFromBody.trim()) {
+			throw new NodeOperationError(node, 'URL is required for Extract Data operation and cannot be empty.', { itemIndex: currentItemIndex });
+		}
+		body.url = urlFromBody.trim(); // Use trimmed URL
 
 		// --- Attributes Logic ---
 		AiScraper._addAttributesToBody(this, body);
 
 		// --- Cookies Logic ---
-		const cookiesString = this.getNodeParameter('cookies', currentItemIndex) as string;
+		const cookiesStringParam = this.getNodeParameter('cookies', currentItemIndex) as string;
 		let parsedCookies;
 		try {
-			parsedCookies = JSON.parse(cookiesString);
+			parsedCookies = JSON.parse(cookiesStringParam);
 		} catch (error: any) {
 			throw new NodeOperationError(node, `Invalid JSON in Cookies field: ${error.message}`, { itemIndex: currentItemIndex });
 		}
@@ -79,16 +126,24 @@ export class AiScraper implements INodeType {
 		this: IExecuteSingleFunctions,
 		requestOptions: IHttpRequestOptions
 	): Promise<IHttpRequestOptions> {
+		const node = this.getNode();
+		const currentItemIndex = this.getItemIndex();
+
 		// Ensure body exists
 		if (!requestOptions.body || typeof requestOptions.body !== 'object') {
 			requestOptions.body = {};
 		}
 		const body = requestOptions.body as Record<string, any>;
 
+		// --- Validate Content ---
+		const contentFromBody = body.content;
+		if (typeof contentFromBody !== 'string' || !contentFromBody.trim()) {
+			throw new NodeOperationError(node, 'Content (HTML or Text) is required for Parse HTML operation and cannot be empty.', { itemIndex: currentItemIndex });
+		}
+		body.content = contentFromBody.trim(); // Use trimmed content
+
 		// --- Attributes Logic ---
 		AiScraper._addAttributesToBody(this, body);
-
-		// No cookies processing in this method
 
 		return requestOptions;
 	}
@@ -138,12 +193,11 @@ export class AiScraper implements INodeType {
 									url: '={{$parameter["url"]}}',
 									mode: '={{$parameter["mode"]}}',
 									proxy_country: '={{$parameter["proxyCountry"]}}',
-									// 'attributes' and 'cookies' will be added by the preSend function
 								}
 							},
 							send: {
 								preSend: [
-									AiScraper.prepareExtractRequestBody, // This handles both attributes and cookies
+									AiScraper.prepareExtractRequestBody,
 								],
 							},
 						},
@@ -160,12 +214,11 @@ export class AiScraper implements INodeType {
 								body: {
 									content: '={{$parameter["content"]}}',
 									mode: '={{$parameter["mode"]}}',
-									// 'attributes' will be added by the preSend function
 								}
 							},
 							send: {
 								preSend: [
-									AiScraper.prepareAttributesForRequestBody, // Uses the method for attributes only
+									AiScraper.prepareAttributesForRequestBody,
 								],
 							},
 						},
@@ -206,8 +259,8 @@ export class AiScraper implements INodeType {
 				displayName: 'Attributes',
 				name: 'attributes',
 				type: 'fixedCollection',
-				default: { fieldValues: [] },
-				description: 'Define the data fields to extract. Each attribute must have a Field Name and Field Description. At least one attribute is required.',
+				default: { fieldValues: [{ fieldName: '', fieldType: 'any', fieldDescription: '' }] },
+				description: 'Define the data fields to extract. Each attribute must have a Field Name, Type, and Field Description. At least one attribute is required.',
 				placeholder: 'Add Attribute',
 				typeOptions: {
 					multipleValues: true,
@@ -296,7 +349,7 @@ export class AiScraper implements INodeType {
 				name: 'cookies',
 				type: 'json',
 				default: '[]',
-				description: 'Optional. Provide cookies as a JSON array string.',
+				description: 'Optional. Provide cookies as a JSON array.',
 				displayOptions: {
 					show: {
 						operation: ['extractData'],
