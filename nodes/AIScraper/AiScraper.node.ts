@@ -4,6 +4,9 @@ import {
 	IHttpRequestOptions,
 	IExecuteSingleFunctions,
 	NodeOperationError,
+	IDataObject,
+	INodeExecutionData,
+	IN8nHttpFullResponse,
 } from 'n8n-workflow';
 import { ProxyCountryList, ProxyCountryOption } from './proxy-countries.data';
 
@@ -17,9 +20,9 @@ export class AiScraper implements INodeType {
 		const node = context.getNode();
 		const attributesParam = context.getNodeParameter('attributes', currentItemIndex) as {
 			fieldValues: Array<{
-				fieldName: string; // Marked as required in definition
-				fieldType: string; // Marked as required in definition
-				fieldDescription: string; // Marked as required in definition
+				fieldName: string;
+				fieldType: string;
+				fieldDescription: string;
 			}>
 		};
 
@@ -41,35 +44,22 @@ export class AiScraper implements INodeType {
 			if (fieldName === '') {
 				throw new NodeOperationError(
 					node,
-					`Attribute at index ${index} has an empty or whitespace-only Field Name. Field Name cannot be empty.`,
+					`Attribute at index ${index} has an empty Field Name.`,
 					{ itemIndex: currentItemIndex }
 				);
 			}
-			// Optional: check if fieldDescription is empty, if the API requires it.
-			// if (fieldDescription === '') {
-			//     throw new NodeOperationError(
-			//         node,
-			//         `Attribute "${fieldName}" (at index ${index}) has an empty or whitespace-only Field Description.`,
-			//         { itemIndex: currentItemIndex }
-			//     );
-			// }
+			if (fieldDescription === '') {
+			    throw new NodeOperationError(
+			        node,
+			        `Attribute "${fieldName}" (at index ${index}) has an empty Field Description.`,
+			        { itemIndex: currentItemIndex }
+			    );
+			}
 
 			transformedAttributes[fieldName] = {
 				description: fieldDescription,
 				type: item.fieldType
 			};
-		}
-
-		// This check would be redundant if the loop's fieldName check throws,
-		// but good as a safeguard if logic changes (e.g., empty fieldNames were skipped instead of throwing).
-		// Given the current logic, Object.keys(transformedAttributes).length will be > 0 if fieldValues.length > 0
-		// and all fieldNames are valid.
-		if (Object.keys(transformedAttributes).length === 0) {
-			throw new NodeOperationError(
-				node,
-				'No valid attributes were processed. Ensure all attributes have a non-empty Field Name.',
-				{ itemIndex: currentItemIndex }
-			);
 		}
 
 		body.attributes = transformedAttributes;
@@ -83,45 +73,46 @@ export class AiScraper implements INodeType {
 		const node = this.getNode();
 		const currentItemIndex = this.getItemIndex();
 
-		// Ensure body exists
 		if (!requestOptions.body || typeof requestOptions.body !== 'object') {
-			requestOptions.body = {}; // Should not happen if routing.request.body is defined
+			requestOptions.body = {};
 		}
 		const body = requestOptions.body as Record<string, any>;
 
-		// --- Validate URL ---
-		const urlFromBody = body.url; // Comes from '={{$parameter["url"]}}'
+		const urlFromBody = body.url;
 		if (typeof urlFromBody !== 'string' || !urlFromBody.trim()) {
-			throw new NodeOperationError(node, 'URL is required for Extract Data operation and cannot be empty.', { itemIndex: currentItemIndex });
+			throw new NodeOperationError(node, 'URL is required.', { itemIndex: currentItemIndex });
 		}
-		body.url = urlFromBody.trim(); // Use trimmed URL
+		body.url = urlFromBody.trim();
 
-		// --- Attributes Logic ---
 		AiScraper._addAttributesToBody(this, body);
 
 		// --- Cookies Logic ---
 		const cookiesStringParam = this.getNodeParameter('cookies', currentItemIndex) as string;
-		let parsedCookies;
-		try {
-			parsedCookies = JSON.parse(cookiesStringParam);
-		} catch (error: any) {
-			throw new NodeOperationError(node, `Invalid JSON in Cookies field: ${error.message}`, { itemIndex: currentItemIndex });
-		}
+		if (cookiesStringParam && cookiesStringParam.trim() !== '') { // Check if cookies are provided
+			let parsedCookies;
+			try {
+				parsedCookies = JSON.parse(cookiesStringParam);
+			} catch (error: any) {
+				throw new NodeOperationError(node, `Invalid JSON in Cookies field: ${error.message}`, { itemIndex: currentItemIndex });
+			}
 
-		if (!Array.isArray(parsedCookies)) {
-			throw new NodeOperationError(node, 'Cookies field, if provided, must be a JSON array.', { itemIndex: currentItemIndex });
-		}
+			if (!Array.isArray(parsedCookies)) {
+				throw new NodeOperationError(node, 'Cookies field must be a JSON array.', { itemIndex: currentItemIndex });
+			}
 
-		if (parsedCookies.length === 0) {
-			body.cookies = null;
+			if (parsedCookies.length === 0) {
+				body.cookies = null;
+			} else {
+				body.cookies = parsedCookies;
+			}
 		} else {
-			body.cookies = parsedCookies;
+			body.cookies = null;
 		}
+
 
 		return requestOptions;
 	}
 
-	// Method to prepare request body with attributes only (no cookies)
 	static async prepareAttributesForRequestBody(
 		this: IExecuteSingleFunctions,
 		requestOptions: IHttpRequestOptions
@@ -129,23 +120,39 @@ export class AiScraper implements INodeType {
 		const node = this.getNode();
 		const currentItemIndex = this.getItemIndex();
 
-		// Ensure body exists
 		if (!requestOptions.body || typeof requestOptions.body !== 'object') {
 			requestOptions.body = {};
 		}
 		const body = requestOptions.body as Record<string, any>;
 
-		// --- Validate Content ---
 		const contentFromBody = body.content;
 		if (typeof contentFromBody !== 'string' || !contentFromBody.trim()) {
-			throw new NodeOperationError(node, 'Content (HTML or Text) is required for Parse HTML operation and cannot be empty.', { itemIndex: currentItemIndex });
+			throw new NodeOperationError(node, 'Content is required for Parse HTML.', { itemIndex: currentItemIndex });
 		}
-		body.content = contentFromBody.trim(); // Use trimmed content
+		body.content = contentFromBody.trim();
 
-		// --- Attributes Logic ---
 		AiScraper._addAttributesToBody(this, body);
 
 		return requestOptions;
+	}
+
+	static async unpackResponseData(
+		this: IExecuteSingleFunctions,
+		items: INodeExecutionData[],
+		response: IN8nHttpFullResponse,
+	): Promise<INodeExecutionData[]> {
+		const responseBody = response.body;
+
+		if (typeof responseBody === 'object' && responseBody !== null && 'data' in responseBody) {
+			const extractedContent = (responseBody as IDataObject).data;
+
+			if (Array.isArray(extractedContent)) {
+				return extractedContent.map(item => ({ json: item as IDataObject }));
+			} else if (typeof extractedContent === 'object' && extractedContent !== null) {
+				return [{ json: extractedContent as IDataObject }];
+			}
+		}
+		return items;
 	}
 
 	description: INodeTypeDescription = {
@@ -168,10 +175,11 @@ export class AiScraper implements INodeType {
 			},
 		],
 		requestDefaults: {
-			baseURL: 'http://0.0.0.0:8080/v1',
+			baseURL: 'https://api.parsera.org/v1',
 			headers: {
 				'Content-Type': 'application/json',
 			},
+			json: true,
 		},
 		properties: [
 			{
@@ -200,6 +208,9 @@ export class AiScraper implements INodeType {
 									AiScraper.prepareExtractRequestBody,
 								],
 							},
+							output: {
+								postReceive: [AiScraper.unpackResponseData],
+							},
 						},
 					},
 					{
@@ -221,6 +232,9 @@ export class AiScraper implements INodeType {
 									AiScraper.prepareAttributesForRequestBody,
 								],
 							},
+							output: {
+								postReceive: [AiScraper.unpackResponseData],
+							},
 						},
 					},
 				],
@@ -240,7 +254,7 @@ export class AiScraper implements INodeType {
 				},
 			},
 			{
-				displayName: 'Content (HTML or Text)',
+				displayName: 'Content',
 				name: 'content',
 				type: 'string',
 				default: '',
