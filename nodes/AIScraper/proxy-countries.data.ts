@@ -5,6 +5,10 @@ export interface ProxyCountryOption {
 
 export const ProxyCountryList: ProxyCountryOption[] = [
     {
+        "name": "Default",
+        "value": ""
+    },
+    {
         "name": "Random Country",
         "value": "random"
     },

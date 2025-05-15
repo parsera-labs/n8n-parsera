@@ -364,7 +364,7 @@ export class AiScraper implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'AI Scraper',
 		name: 'aiScraper',
-		icon: 'file:aiscraper.png',
+		icon: 'file:aiscraper.svg',
 		group: ['transform'],
 		version: 1,
 		subtitle: '={{$parameter["operation"] + ": " + $parameter["resource"]}}',
@@ -409,7 +409,7 @@ export class AiScraper implements INodeType {
 				displayOptions: { show: { resource: ['extractor'] } },
 				options: [
 					{
-						name: 'Extract from URL',
+						name: 'Extract From URL',
 						value: 'extractUrl',
 						description: 'Extract data from a webpage using URL',
 						action: 'Extract from URL',
@@ -476,7 +476,7 @@ export class AiScraper implements INodeType {
 						name: 'Agent Scrape',
 						value: 'agentScrape',
 						description: 'Scrape webpage with pre-configured agent',
-						action: 'Scrape with Agent',
+						action: 'Scrape with agent',
 						routing: {
 							request: {
 								method: 'POST',
@@ -599,15 +599,15 @@ export class AiScraper implements INodeType {
 								type: 'options',
 								default: 'any',
 								required: true,
-								description: 'The type of the data field.',
+								description: 'The type of the data field',
 								options: [
 									{ name: 'Any', value: 'any', description: 'Any data type' },
-									{ name: 'String', value: 'string', description: 'Text value' },
-									{ name: 'Integer', value: 'integer', description: 'Whole number' },
-									{ name: 'Number', value: 'number', description: 'Number with decimals' },
 									{ name: 'Boolean', value: 'bool', description: 'True or false' },
+									{ name: 'Integer', value: 'integer', description: 'Whole number' },
 									{ name: 'List', value: 'list', description: 'An array of values' },
+									{ name: 'Number', value: 'number', description: 'Number with decimals' },
 									{ name: 'Object', value: 'object', description: 'A key-value map' },
+									{ name: 'String', value: 'string', description: 'Text value' },
 								]
 							},
 							{
@@ -658,11 +658,11 @@ export class AiScraper implements INodeType {
 				displayName: 'Proxy Country',
 				name: 'proxyCountry',
 				type: 'options',
+				default: '',
 				options: ProxyCountryList.map((country: ProxyCountryOption) => ({
 					name: country.name,
 					value: country.value,
 				})),
-				default: 'UnitedStates',
 				description: 'Route request through a proxy in the selected country to access geo-specific content',
 				displayOptions: { show: { operation: ['extractUrl', 'agentScrape'] } },
 			},
