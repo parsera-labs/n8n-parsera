@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "description": "n8n node to call Parsera API for AI Scraping",
   "keywords": [
-    "n8n-community-node-package"
+    "n8n-community-node-package",
+    "parsera",
+    "n8n"
   ],
   "license": "MIT",
   "homepage": "https://parsera.org",
@@ -46,8 +48,5 @@
   },
   "peerDependencies": {
     "n8n-workflow": "*"
-  },
-  "dependencies": {
-    "n8n": "^1.91.3"
   }
 }
