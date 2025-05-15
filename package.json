@@ -32,10 +32,10 @@
   "n8n": {
     "n8nNodesApiVersion": 1,
     "credentials": [
-      "dist/credentials/AIScraperApi.credentials.ts"
+      "dist/credentials/AIScraperApi.credentials.js"
     ],
     "nodes": [
-      "dist/nodes/AIScraper/AiScraper.node.ts"
+      "dist/nodes/AIScraper/AiScraper.node.js"
     ]
   },
   "devDependencies": {
