@@ -1,16 +1,201 @@
 import {
+	IDataObject,
+	IExecuteSingleFunctions,
+	IHttpRequestOptions,
+	IN8nHttpFullResponse,
+	INodeExecutionData,
 	INodeType,
 	INodeTypeDescription,
-	IHttpRequestOptions,
-	IExecuteSingleFunctions,
 	NodeOperationError,
-	IDataObject,
-	INodeExecutionData,
-	IN8nHttpFullResponse,
 } from 'n8n-workflow';
 import { ProxyCountryList, ProxyCountryOption } from './proxy-countries.data';
 
+type AttributeDefinition = {
+	description: string;
+	type: string;
+};
+type TransformedAttributesMap = Record<string, AttributeDefinition>;
+
+type AttributeFieldItem = {
+	fieldName: string;
+	fieldType: string;
+	fieldDescription: string;
+};
+type AttributesFieldsParameter = {
+	fieldValues: AttributeFieldItem[];
+};
+
+
 export class AiScraper implements INodeType {
+
+	/**
+	 * Parses attributes defined using the 'Structured Fields' (fixedCollection) mode.
+	 * @param context - The execution context.
+	 * @param attributesFieldsParam - The parameter object containing fieldValues.
+	 * @returns A map of transformed attributes.
+	 * @throws NodeOperationError if validation fails.
+	 */
+	private static _parseAttributesFromFields(
+		context: IExecuteSingleFunctions,
+		attributesFieldsParam: AttributesFieldsParameter | undefined,
+	): TransformedAttributesMap {
+		const node = context.getNode();
+		const currentItemIndex = context.getItemIndex();
+		const transformedAttributes: TransformedAttributesMap = {};
+		const fieldValues = attributesFieldsParam?.fieldValues ?? [];
+
+		if (fieldValues.length === 0 && !attributesFieldsParam) {
+			return {};
+		}
+
+
+		for (const [index, item] of fieldValues.entries()) {
+			if (
+				!item ||
+				typeof item.fieldName !== 'string' ||
+				typeof item.fieldType !== 'string' ||
+				typeof item.fieldDescription !== 'string'
+			) {
+				throw new NodeOperationError(
+					node,
+					`Attribute at index ${index} is malformed or missing required properties.`,
+					{ itemIndex: currentItemIndex },
+				);
+			}
+
+			const fieldName = item.fieldName.trim();
+			const fieldDescription = item.fieldDescription.trim();
+
+			if (!fieldName) {
+				throw new NodeOperationError(
+					node,
+					`Empty Field Name at index ${index}.`,
+					{ itemIndex: currentItemIndex },
+				);
+			}
+			if (!fieldDescription) {
+				throw new NodeOperationError(
+					node,
+					`Empty Field Description for "${fieldName}" (at index ${index}).`,
+					{ itemIndex: currentItemIndex },
+				);
+			}
+			if (!item.fieldType) {
+				throw new NodeOperationError(
+					node,
+					`Attribute Type for "${fieldName}" (at index ${index}) cannot be empty.`,
+					{ itemIndex: currentItemIndex },
+				);
+			}
+
+			transformedAttributes[fieldName] = { description: fieldDescription, type: item.fieldType };
+		}
+		return transformedAttributes;
+	}
+
+	/**
+	 * Parses attributes defined using the 'JSON Object' mode.
+	 * @param context - The execution context.
+	 * @param attributesJsonInput - The JSON string or pre-parsed object for attributes.
+	 * @returns A map of transformed attributes.
+	 * @throws NodeOperationError if validation fails.
+	 */
+	private static _parseAttributesFromJson(
+		context: IExecuteSingleFunctions,
+		attributesJsonInput: unknown,
+	): TransformedAttributesMap {
+		const node = context.getNode();
+		const currentItemIndex = context.getItemIndex();
+		const transformedAttributes: TransformedAttributesMap = {};
+
+		let parsedObject: IDataObject;
+
+		if (typeof attributesJsonInput === 'string') {
+			const trimmedJsonInput = attributesJsonInput.trim();
+			if (trimmedJsonInput === '') {
+				return {};
+			}
+			try {
+				parsedObject = JSON.parse(trimmedJsonInput);
+			} catch (error: any) {
+				throw new NodeOperationError(
+					node,
+					`Attributes field contains invalid JSON: ${error.message}`,
+					{ itemIndex: currentItemIndex },
+				);
+			}
+		} else if (typeof attributesJsonInput === 'object' && attributesJsonInput !== null) {
+			if (Array.isArray(attributesJsonInput)) {
+				throw new NodeOperationError(
+					node,
+					`Attributes field must be a JSON object, not an array.`,
+					{ itemIndex: currentItemIndex },
+				);
+			}
+			parsedObject = attributesJsonInput as IDataObject; // Already an object
+		} else if (attributesJsonInput === null || attributesJsonInput === undefined) {
+			return {};
+		}
+		else {
+			throw new NodeOperationError(
+				node,
+				`Attributes field is an unexpected type: ${typeof attributesJsonInput}.`,
+				{ itemIndex: currentItemIndex },
+			);
+		}
+
+		if (typeof parsedObject !== 'object' || parsedObject === null || Array.isArray(parsedObject)) {
+			throw new NodeOperationError(
+				node,
+				`Attributes must resolve to a JSON object. Received: ${Array.isArray(parsedObject) ? 'an array' : typeof parsedObject}.`,
+				{ itemIndex: currentItemIndex },
+			);
+		}
+
+		for (const [key, value] of Object.entries(parsedObject)) {
+			const fieldName = key.trim();
+			if (!fieldName) {
+				throw new NodeOperationError(
+					node,
+					'Attribute name (JSON key) cannot be empty.',
+					{ itemIndex: currentItemIndex },
+				);
+			}
+
+			if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+				throw new NodeOperationError(
+					node,
+					`Value for attribute "${fieldName}" in JSON must be an object.`,
+					{ itemIndex: currentItemIndex },
+				);
+			}
+
+			const attributeDetails = value as Partial<AttributeDefinition>;
+
+			const description = attributeDetails.description?.trim();
+			const type = attributeDetails.type?.trim();
+
+			if (typeof description !== 'string' || !description) {
+				throw new NodeOperationError(
+					node,
+					`Attribute "${fieldName}" in JSON is missing a valid "description".`,
+					{ itemIndex: currentItemIndex },
+				);
+			}
+
+			if (typeof type !== 'string' || !type) {
+				throw new NodeOperationError(
+					node,
+					`Attribute "${fieldName}" in JSON is missing a valid "type".`,
+					{ itemIndex: currentItemIndex },
+				);
+			}
+
+			transformedAttributes[fieldName] = { description, type };
+		}
+		return transformedAttributes;
+	}
+
 
 	private static _addAttributesToBody(
 		context: IExecuteSingleFunctions,
@@ -18,54 +203,38 @@ export class AiScraper implements INodeType {
 	): void {
 		const currentItemIndex = context.getItemIndex();
 		const node = context.getNode();
-		const attributesParam = context.getNodeParameter('attributes', currentItemIndex) as {
-			fieldValues: Array<{
-				fieldName: string;
-				fieldType: string;
-				fieldDescription: string;
-			}>
-		};
+		const attributesInputMode = context.getNodeParameter('attributesInputMode', currentItemIndex) as 'fields' | 'json';
+		let transformedAttributes: TransformedAttributesMap;
 
-		const fieldValues = (attributesParam && attributesParam.fieldValues) ? attributesParam.fieldValues : [];
-
-		if (fieldValues.length === 0) {
-			throw new NodeOperationError(
-				node,
-				'At least one attribute is required. Please add attributes to extract.',
-				{ itemIndex: currentItemIndex }
-			);
+		switch (attributesInputMode) {
+			case 'fields':
+				const attributesFieldsParam = context.getNodeParameter('attributesFields', currentItemIndex) as AttributesFieldsParameter | undefined;
+				transformedAttributes = AiScraper._parseAttributesFromFields(context, attributesFieldsParam);
+				break;
+			case 'json':
+				const attributesJsonParam = context.getNodeParameter('attributesJson', currentItemIndex);
+				transformedAttributes = AiScraper._parseAttributesFromJson(context, attributesJsonParam);
+				break;
+			default:
+				const exhaustiveCheck: never = attributesInputMode;
+				throw new NodeOperationError(
+					node,
+					`Internal error: Unhandled attributes input mode '${exhaustiveCheck}'.`,
+					{ itemIndex: currentItemIndex }
+				);
 		}
 
-		const transformedAttributes: { [key: string]: { description: string; type: string } } = {};
-		for (const [index, item] of fieldValues.entries()) {
-			const fieldName = item.fieldName.trim();
-			const fieldDescription = item.fieldDescription.trim();
-
-			if (fieldName === '') {
-				throw new NodeOperationError(
-					node,
-					`Attribute at index ${index} has an empty Field Name.`,
-					{ itemIndex: currentItemIndex }
-				);
-			}
-			if (fieldDescription === '') {
-				throw new NodeOperationError(
-					node,
-					`Attribute "${fieldName}" (at index ${index}) has an empty Field Description.`,
-					{ itemIndex: currentItemIndex }
-				);
-			}
-
-			transformedAttributes[fieldName] = {
-				description: fieldDescription,
-				type: item.fieldType
-			};
+		if (Object.keys(transformedAttributes).length === 0) {
+			throw new NodeOperationError(
+				node,
+				'At least one attribute is required.',
+				{ itemIndex: currentItemIndex }
+			);
 		}
 
 		body.attributes = transformedAttributes;
 	}
 
-	// New helper method for handling cookies
 	private static _addCookiesToBody(
 		context: IExecuteSingleFunctions,
 		body: Record<string, any>
@@ -116,7 +285,7 @@ export class AiScraper implements INodeType {
 		body.url = urlFromBody.trim();
 
 		AiScraper._addAttributesToBody(this, body);
-		AiScraper._addCookiesToBody(this, body); // Use the refactored helper method
+		AiScraper._addCookiesToBody(this, body);
 
 		return requestOptions;
 	}
@@ -144,7 +313,6 @@ export class AiScraper implements INodeType {
 		return requestOptions;
 	}
 
-	// New preSend function for Agent Scrape operation
 	static async prepareScrapeRequestBody(
 		this: IExecuteSingleFunctions,
 		requestOptions: IHttpRequestOptions
@@ -157,21 +325,18 @@ export class AiScraper implements INodeType {
 		}
 		const body = requestOptions.body as Record<string, any>;
 
-		// Agent Name validation (value comes from routing `body.name`)
 		const agentNameFromBody = body.name;
 		if (typeof agentNameFromBody !== 'string' || !agentNameFromBody.trim()) {
 			throw new NodeOperationError(node, 'Agent Name is required for Agent Scrape operation.', { itemIndex: currentItemIndex });
 		}
 		body.name = agentNameFromBody.trim();
 
-		// URL validation (value comes from routing `body.url`)
 		const urlFromBody = body.url;
 		if (typeof urlFromBody !== 'string' || !urlFromBody.trim()) {
 			throw new NodeOperationError(node, 'URL is required for Agent Scrape operation.', { itemIndex: currentItemIndex });
 		}
 		body.url = urlFromBody.trim();
 
-		// Add cookies using the helper method
 		AiScraper._addCookiesToBody(this, body);
 
 		return requestOptions;
@@ -206,7 +371,9 @@ export class AiScraper implements INodeType {
 		description: 'Scrape data from websites using the Parsera API',
 		defaults: {
 			name: 'AI Scraper',
+			attributesInputMode: 'fields',
 		},
+		usableAsTool: true,
 		inputs: ['main'],
 		outputs: ['main'],
 		credentials: [
@@ -229,14 +396,8 @@ export class AiScraper implements INodeType {
 				type: 'options',
 				noDataExpression: true,
 				options: [
-					{
-						name: 'Extractor',
-						value: 'extractor',
-					},
-					{
-						name: 'Agent Scrape',
-						value: 'agent',
-					},
+					{ name: 'Extractor', value: 'extractor' },
+					{ name: 'Agent Scrape', value: 'agent' },
 				],
 				default: 'extractor',
 			},
@@ -245,11 +406,7 @@ export class AiScraper implements INodeType {
 				name: 'operation',
 				type: 'options',
 				noDataExpression: true,
-				displayOptions: {
-					show: {
-						resource: ['extractor'],
-					}
-				},
+				displayOptions: { show: { resource: ['extractor'] } },
 				options: [
 					{
 						name: 'Extract from URL',
@@ -338,14 +495,13 @@ export class AiScraper implements INodeType {
 								],
 							},
 							output: {
-								postReceive: [AiScraper.unpackResponseData], // Reusing existing unpacker
+								postReceive: [AiScraper.unpackResponseData],
 							},
 						},
 					},
 				],
 				default: 'agentScrape',
 			},
-			// New property for Agent Scrape
 			{
 				displayName: 'Agent Name',
 				name: 'agentName',
@@ -368,7 +524,7 @@ export class AiScraper implements INodeType {
 				description: 'URL of the webpage to extract data from',
 				displayOptions: {
 					show: {
-						operation: ['extractUrl', 'agentScrape'], // Updated
+						operation: ['extractUrl', 'agentScrape'],
 					},
 				},
 			},
@@ -389,11 +545,36 @@ export class AiScraper implements INodeType {
 				},
 			},
 			{
+				displayName: 'Attributes Input Mode',
+				name: 'attributesInputMode',
+				type: 'options',
+				options: [
+					{
+						name: 'Fields',
+						value: 'fields',
+						description: 'Define using individual fields'
+					},
+					{
+						name: 'JSON',
+						value: 'json',
+						description: 'Define as a single JSON object'
+					},
+				],
+				default: 'fields',
+				description: 'Select how to define attributes. "JSON" is often preferred for AI tool integration or complex schemas.',
+				displayOptions: {
+					show: {
+						operation: ['extractUrl', 'parseHtml'],
+					},
+				},
+				noDataExpression: true,
+			},
+			{
 				displayName: 'Attributes',
-				name: 'attributes',
+				name: 'attributesFields',
 				type: 'fixedCollection',
 				default: { fieldValues: [{ fieldName: '', fieldType: 'any', fieldDescription: '' }] },
-				description: 'Define the data fields to extract. Each attribute must have a Field Name, Type, and Field Description. At least one attribute is required.',
+				description: 'Define data fields to extract. Each attribute requires a Field Name, Type, and Description.',
 				placeholder: 'Add Attribute',
 				typeOptions: {
 					multipleValues: true,
@@ -402,7 +583,7 @@ export class AiScraper implements INodeType {
 				options: [
 					{
 						name: 'fieldValues',
-						displayName: '',
+						displayName: 'Attribute Definitions',
 						values: [
 							{
 								displayName: 'Field Name',
@@ -422,11 +603,11 @@ export class AiScraper implements INodeType {
 								options: [
 									{ name: 'Any', value: 'any', description: 'Any data type' },
 									{ name: 'String', value: 'string', description: 'Text value' },
-									{ name: 'Integer', value: 'integer', description: 'Integer number' },
-									{ name: 'Number', value: 'number', description: 'Floating point number' },
-									{ name: 'Boolean', value: 'bool', description: '`true` or `false`' },
-									{ name: 'List', value: 'list', description: 'List of values' },
-									{ name: 'Object', value: 'object', description: 'Map of keys and values' },
+									{ name: 'Integer', value: 'integer', description: 'Whole number' },
+									{ name: 'Number', value: 'number', description: 'Number with decimals' },
+									{ name: 'Boolean', value: 'bool', description: 'True or false' },
+									{ name: 'List', value: 'list', description: 'An array of values' },
+									{ name: 'Object', value: 'object', description: 'A key-value map' },
 								]
 							},
 							{
@@ -435,7 +616,7 @@ export class AiScraper implements INodeType {
 								type: 'string',
 								default: '',
 								required: true,
-								description: 'A natural language description of what data to extract for this field.',
+								description: 'Natural language instruction on what data to extract for this field'
 							},
 						],
 					},
@@ -443,6 +624,21 @@ export class AiScraper implements INodeType {
 				displayOptions: {
 					show: {
 						operation: ['extractUrl', 'parseHtml'],
+						attributesInputMode: ['fields'],
+					},
+				},
+			},
+			{
+				displayName: 'Attributes (JSON)',
+				name: 'attributesJson',
+				type: 'json',
+				default: '{\n  "example_attribute_name": {\n    "description": "Natural language description of what data to extract.",\n    "type": "string"\n  }\n}',
+				description: 'Define attributes as a JSON object. Each key is a field name, and its value is an object like: `{"description": "details...", "type": "string"}`. Allowed types: any, string, integer, number, bool, list, object.',
+				typeOptions: { rows: 8 },
+				displayOptions: {
+					show: {
+						operation: ['extractUrl', 'parseHtml'],
+						attributesInputMode: ['json'],
 					},
 				},
 			},
@@ -451,16 +647,12 @@ export class AiScraper implements INodeType {
 				name: 'mode',
 				type: 'options',
 				default: 'standard',
-				description: 'Mode of the extractor',
+				description: 'Extraction mode. "Precision" may yield better results for data hidden deeper in HTML.',
 				options: [
-					{ name: 'Standard', value: 'standard', description: 'Standard Mode' },
-					{ name: 'Precision', value: 'precision', description: 'Precision Mode' },
+					{ name: 'Standard', value: 'standard', description: 'Balanced speed and accuracy' },
+					{ name: 'Precision', value: 'precision', description: 'Extract data hidden inside HTML structures' },
 				],
-				displayOptions: {
-					show: {
-						operation: ['extractUrl', 'parseHtml'],
-					},
-				},
+				displayOptions: { show: { operation: ['extractUrl', 'parseHtml'] } },
 			},
 			{
 				displayName: 'Proxy Country',
@@ -471,24 +663,17 @@ export class AiScraper implements INodeType {
 					value: country.value,
 				})),
 				default: 'UnitedStates',
-				displayOptions: {
-					show: {
-						operation: ['extractUrl', 'agentScrape'],
-					},
-				},
+				description: 'Route request through a proxy in the selected country to access geo-specific content',
+				displayOptions: { show: { operation: ['extractUrl', 'agentScrape'] } },
 			},
 			{
 				displayName: 'Cookies',
 				name: 'cookies',
 				type: 'json',
 				default: '[]',
-				description: 'Optional. Provide cookies as a JSON array.',
-				displayOptions: {
-					show: {
-						operation: ['extractUrl', 'agentScrape'],
-					},
-				},
+				description: 'Optional. Provide cookies as a JSON array of objects, e.g., `[{"name": "session", "value": "abc", "domain": ".example.com"}]`.',
+				displayOptions: { show: { operation: ['extractUrl', 'agentScrape'] } },
 			},
 		]
-	};
+	} as INodeTypeDescription;
 }
