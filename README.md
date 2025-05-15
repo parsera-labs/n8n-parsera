@@ -4,6 +4,8 @@ This is an n8n community node. It lets you use the Parsera AI Scraper API in you
 
 Parsera AI Scraper is a service that uses AI to extract structured data from web pages, either by providing a URL or raw HTML content. It simplifies web scraping by allowing users to define data fields through natural language descriptions or by using pre-configured scraping agents.
 
+[https://parsera.org)](https://parsera.org)
+
 [n8n](https://n8n.io/) is a [fair-code licensed](https://docs.n8n.io/reference/license/) workflow automation platform.
 
 [Installation](#installation)  
