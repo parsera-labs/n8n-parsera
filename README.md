@@ -1,46 +1,77 @@
-![Banner image](https://user-images.githubusercontent.com/10284570/173569848-c624317f-42b1-45a6-ab09-f0ea3c247648.png)
+# n8n-nodes-aiscraper
 
-# n8n-nodes-starter
+This is an n8n community node. It lets you use the Parsera AI Scraper API in your n8n workflows.
 
-This repo contains example nodes to help you get started building your own custom integrations for [n8n](n8n.io). It includes the node linter and other dependencies.
+Parsera AI Scraper is a service that uses AI to extract structured data from web pages, either by providing a URL or raw HTML content. It simplifies web scraping by allowing users to define data fields through natural language descriptions or by using pre-configured scraping agents.
 
-To make your custom node available to the community, you must create it as an npm package, and [submit it to the npm registry](https://docs.npmjs.com/packages-and-modules/contributing-packages-to-the-registry).
+[n8n](https://n8n.io/) is a [fair-code licensed](https://docs.n8n.io/reference/license/) workflow automation platform.
 
-## Prerequisites
+[Installation](#installation)  
+[Operations](#operations)  
+[Credentials](#credentials)
+[Compatibility](#compatibility)  
+[Usage](#usage)
+[Resources](#resources)
+[Version history](#version-history)
 
-You need the following installed on your development machine:
+## Installation
 
-* [git](https://git-scm.com/downloads)
-* Node.js and pnpm. Minimum version Node 18. You can find instructions on how to install both using nvm (Node Version Manager) for Linux, Mac, and WSL [here](https://github.com/nvm-sh/nvm). For Windows users, refer to Microsoft's guide to [Install NodeJS on Windows](https://docs.microsoft.com/en-us/windows/dev-environment/javascript/nodejs-on-windows).
-* Install n8n with:
-  ```
-  pnpm install n8n -g
-  ```
-* Recommended: follow n8n's guide to [set up your development environment](https://docs.n8n.io/integrations/creating-nodes/build/node-development-environment/).
+Follow the [installation guide](https://docs.n8n.io/integrations/community-nodes/installation/) in the n8n community nodes documentation.
 
-## Using this starter
+## Operations
 
-These are the basic steps for working with the starter. For detailed guidance on creating and publishing nodes, refer to the [documentation](https://docs.n8n.io/integrations/creating-nodes/).
+The Parsera AI Scraper node supports the following operations:
 
-1. [Generate a new repository](https://github.com/n8n-io/n8n-nodes-starter/generate) from this template repository.
-2. Clone your new repo:
-   ```
-   git clone https://github.com/<your organization>/<your-repo-name>.git
-   ```
-3. Run `pnpm i` to install dependencies.
-4. Open the project in your editor.
-5. Browse the examples in `/nodes` and `/credentials`. Modify the examples, or replace them with your own nodes.
-6. Update the `package.json` to match your details.
-7. Run `pnpm lint` to check for errors or `pnpm lintfix` to automatically fix errors when possible.
-8. Test your node locally. Refer to [Run your node locally](https://docs.n8n.io/integrations/creating-nodes/test/run-node-locally/) for guidance.
-9. Replace this README with documentation for your node. Use the [README_TEMPLATE](README_TEMPLATE.md) to get started.
-10. Update the LICENSE file to use your details.
-11. [Publish](https://docs.npmjs.com/packages-and-modules/contributing-packages-to-the-registry) your package to npm.
+*   **Extractor:**
+    *   **Extract from URL:** Provide a URL, and Parsera will fetch the content and extract data based on your defined attributes. Supports proxy usage and sending cookies.
+    *   **Parse HTML:** Provide raw HTML content, and Parsera will parse it to extract data based on your defined attributes.
+*   **Agent Scrape:**
+    *   **Agent Scrape:** Utilize a pre-configured scraping agent on the Parsera platform to scrape a given URL. **Note:** The Parsera agent itself must be created separately via the [Parsera application](https://parsera.org) or Parsera API before it can be used by this n8n node operation. This operation uses a different base URL (`https://agents.parsera.org/v1`) and also supports proxy usage and sending cookies.
 
-## More information
+## Credentials
 
-Refer to our [documentation on creating nodes](https://docs.n8n.io/integrations/creating-nodes/) for detailed information on building your own nodes.
+To use this node, you need to create AI Scraper credentials within n8n. This requires an API Key from Parsera.
 
-## License
+1.  Sign up for an account at [https://parsera.org](https://parsera.org).
+2.  Once logged in, navigate to your API settings to find your API Key.
+3.  In n8n, create new credentials of type "AI Scraper API".
+4.  Enter the API Key obtained from Parsera into the API Key field in the n8n credential configuration.
 
-[MIT](https://github.com/n8n-io/n8n-nodes-starter/blob/master/LICENSE.md)
+## Compatibility
+
+*   **Minimum n8n Version:** While the node might work with earlier versions, it has been developed and tested primarily on **n8n version 1.19.3**.
+
+## Usage
+
+This node allows you to extract structured data from websites.
+
+**Key Parameters:**
+
+*   **Resource:** Choose between "Extractor" (for direct URL/HTML extraction) and "Agent Scrape" (for using pre-configured Parsera agents).
+*   **Operation:** Select the specific action based on the chosen resource.
+*   **URL/Content:** Provide the target URL or raw HTML content, depending on the operation.
+*   **Attributes Input Mode (for Extractor Resource):**
+    *   **Fields:** Define attributes using a user-friendly interface with separate fields for Field Name, Type, and Field Description. This is the default and recommended for most UI-based configurations.
+    *   **JSON:** Define attributes as a single JSON object. This mode is powerful for programmatic use, AI tool integration, or complex schemas. The expected format is `{"your_field_name": {"description": "What to extract", "type": "string"}}`.
+*   **Attributes (for Extractor Resource):** Depending on the selected input mode, you will either fill out individual fields or provide a JSON object. At least one attribute is required.
+    *   **Field Name:** The key for the extracted data in the output (e.g., `productTitle`, `price`).
+    *   **Type:** The expected data type (e.g., `string`, `integer`, `number`, `boolean`, `list`, `object`, `any`).
+    *   **Field Description:** A natural language instruction telling the AI what data to look for (e.g., "The main title of the product page", "The discounted price of the item").
+*   **Mode (for Extractor Resource):**
+    *   **Standard:** Balanced approach for speed and accuracy.
+    *   **Precision:** Focuses on higher accuracy, potentially at the cost of speed or resources.
+*   **Proxy Country:** Optionally route your request through a proxy in a specific country to access geo-restricted content.
+*   **Cookies:** Optionally provide cookies as a JSON array to be sent with the request (e.g., for authenticated sessions). Format: `[{"name": "cookieName", "value": "cookieValue", "domain": ".example.com"}]`.
+*   **Agent Name (for Agent Scrape Resource):** The name of the pre-configured agent on the Parsera platform. This agent must have been created beforehand in your Parsera account.
+
+The output of the node will be a list of items containing the extracted data.
+
+For more detailed examples and advanced usage, refer to the [Parsera API documentation](https://docs.parsera.org/api/getting-started/).
+If you are new to n8n, you might find the [Try it out](https://docs.n8n.io/try-it-out/) documentation helpful to get started with the platform.
+
+## Resources
+
+*   [n8n community nodes documentation](https://docs.n8n.io/integrations/community-nodes/)
+*   [Parsera Website](https://parsera.org)
+*   [Parsera API Documentation](https://docs.parsera.org/api/getting-started/)
+
