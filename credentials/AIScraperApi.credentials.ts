@@ -1,4 +1,9 @@
-import { IAuthenticateGeneric, ICredentialType, INodeProperties } from 'n8n-workflow';
+import {
+    IAuthenticateGeneric,
+    ICredentialType,
+    INodeProperties,
+    ICredentialTestRequest
+} from 'n8n-workflow';
 
 export class AIScraperApi implements ICredentialType {
     name = 'aiScraperApi';
@@ -18,11 +23,17 @@ export class AIScraperApi implements ICredentialType {
         },
     ];
     authenticate: IAuthenticateGeneric = {
-		type: 'generic',
+        type: 'generic',
         properties: {
             headers: {
                 'X-API-KEY': '={{$credentials.apiKey}}',
             },
         },
-	};
+    };
+    test: ICredentialTestRequest = {
+        request: {
+            baseURL: 'https://agents.parsera.org/v1',
+            url: '/list',
+        },
+    };
 }
