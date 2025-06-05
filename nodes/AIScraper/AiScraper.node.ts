@@ -558,7 +558,7 @@ export class AiScraper implements INodeType {
 				name: 'prompt',
 				type: 'string',
 				default: '',
-				description: 'Optional. A general instruction or question to guide the AI for the entire extraction process. This can be used to provide context or specify a particular style of output for all attributes.',
+				description: 'Use to provide context and general instructions',
 				displayOptions: {
 					show: {
 						operation: ['extractUrl', 'parseHtml'],

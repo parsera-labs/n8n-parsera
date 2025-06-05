@@ -55,6 +55,7 @@ This node allows you to extract structured data from websites.
 *   **Resource:** Choose between "Extractor" (for direct URL/HTML extraction) and "Agent Scrape" (for using pre-configured Parsera agents).
 *   **Operation:** Select the specific action based on the chosen resource.
 *   **URL/Content:** Provide the target URL or raw HTML content, depending on the operation.
+*   **Prompt:** Provide context and general instructions to scraper.
 *   **Attributes Input Mode (for Extractor Resource):**
     *   **Fields:** Define attributes using a user-friendly interface with separate fields for Field Name, Type, and Field Description. This is the default and recommended for most UI-based configurations.
     *   **JSON:** Define attributes as a single JSON object. This mode is powerful for programmatic use, AI tool integration, or complex schemas. The expected format is `{"your_field_name": {"description": "What to extract", "type": "string"}}`.
