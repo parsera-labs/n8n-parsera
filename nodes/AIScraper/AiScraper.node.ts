@@ -11,7 +11,7 @@ import {
 import { ProxyCountryList, ProxyCountryOption } from './proxy-countries.data';
 
 type AttributeDefinition = {
-	description: string;
+	description?: string;
 	type: string;
 };
 type TransformedAttributesMap = Record<string, AttributeDefinition>;
@@ -19,7 +19,7 @@ type TransformedAttributesMap = Record<string, AttributeDefinition>;
 type AttributeFieldItem = {
 	fieldName: string;
 	fieldType: string;
-	fieldDescription: string;
+	fieldDescription?: string;
 };
 type AttributesFieldsParameter = {
 	fieldValues: AttributeFieldItem[];
@@ -54,29 +54,22 @@ export class AiScraper implements INodeType {
 				!item ||
 				typeof item.fieldName !== 'string' ||
 				typeof item.fieldType !== 'string' ||
-				typeof item.fieldDescription !== 'string'
+				(item.fieldDescription !== undefined && typeof item.fieldDescription !== 'string')
 			) {
 				throw new NodeOperationError(
 					node,
-					`Attribute at index ${index} is malformed or missing required properties.`,
+					`Attribute at index ${index} is malformed or missing required properties (fieldName, fieldType). fieldDescription is optional.`,
 					{ itemIndex: currentItemIndex },
 				);
 			}
 
 			const fieldName = item.fieldName.trim();
-			const fieldDescription = item.fieldDescription.trim();
+			const fieldDescription = (item.fieldDescription || '').trim();
 
 			if (!fieldName) {
 				throw new NodeOperationError(
 					node,
 					`Empty Field Name at index ${index}.`,
-					{ itemIndex: currentItemIndex },
-				);
-			}
-			if (!fieldDescription) {
-				throw new NodeOperationError(
-					node,
-					`Empty Field Description for "${fieldName}" (at index ${index}).`,
 					{ itemIndex: currentItemIndex },
 				);
 			}
@@ -172,17 +165,21 @@ export class AiScraper implements INodeType {
 
 			const attributeDetails = value as Partial<AttributeDefinition>;
 
-			const description = attributeDetails.description?.trim();
-			const type = attributeDetails.type?.trim();
+			const descriptionFromPayload = attributeDetails.description;
+			let description: string | undefined;
 
-			if (typeof description !== 'string' || !description) {
-				throw new NodeOperationError(
-					node,
-					`Attribute "${fieldName}" in JSON is missing a valid "description".`,
-					{ itemIndex: currentItemIndex },
-				);
+			if (descriptionFromPayload !== undefined) {
+				if (typeof descriptionFromPayload !== 'string') {
+					throw new NodeOperationError(
+						node,
+						`Attribute "${fieldName}" in JSON has an invalid "description" type. It must be a string. Found: ${typeof descriptionFromPayload}`,
+						{ itemIndex: currentItemIndex },
+					);
+				}
+				description = descriptionFromPayload.trim();
 			}
 
+			const type = attributeDetails.type?.trim();
 			if (typeof type !== 'string' || !type) {
 				throw new NodeOperationError(
 					node,
@@ -191,7 +188,7 @@ export class AiScraper implements INodeType {
 				);
 			}
 
-			transformedAttributes[fieldName] = { description, type };
+			transformedAttributes[fieldName] = { description: description ?? '', type };
 		}
 		return transformedAttributes;
 	}
@@ -278,6 +275,11 @@ export class AiScraper implements INodeType {
 		}
 		const body = requestOptions.body as Record<string, any>;
 
+		const prompt = this.getNodeParameter('prompt', currentItemIndex) as string;
+		if (prompt && prompt.trim() !== '') {
+			body.prompt = prompt.trim();
+		}
+
 		const urlFromBody = body.url;
 		if (typeof urlFromBody !== 'string' || !urlFromBody.trim()) {
 			throw new NodeOperationError(node, 'URL is required.', { itemIndex: currentItemIndex });
@@ -301,6 +303,11 @@ export class AiScraper implements INodeType {
 			requestOptions.body = {};
 		}
 		const body = requestOptions.body as Record<string, any>;
+
+		const prompt = this.getNodeParameter('prompt', currentItemIndex) as string;
+		if (prompt && prompt.trim() !== '') {
+			body.prompt = prompt.trim();
+		}
 
 		const contentFromBody = body.content;
 		if (typeof contentFromBody !== 'string' || !contentFromBody.trim()) {
@@ -372,6 +379,7 @@ export class AiScraper implements INodeType {
 		defaults: {
 			name: 'AI Scraper',
 			attributesInputMode: 'fields',
+			prompt: '',
 		},
 		usableAsTool: true,
 		inputs: ['main'],
@@ -457,7 +465,6 @@ export class AiScraper implements INodeType {
 							},
 						},
 					},
-
 				],
 				default: 'extractUrl',
 			},
@@ -522,6 +529,7 @@ export class AiScraper implements INodeType {
 				default: '',
 				required: true,
 				description: 'URL of the webpage to extract data from',
+				placeholder: 'Enter URL',
 				displayOptions: {
 					show: {
 						operation: ['extractUrl', 'agentScrape'],
@@ -538,10 +546,27 @@ export class AiScraper implements INodeType {
 					rows: 5,
 				},
 				description: 'Raw HTML or text content to extract data from',
+				placeholder: 'Enter HTML or text content',
 				displayOptions: {
 					show: {
 						operation: ['parseHtml'],
 					},
+				},
+			},
+			{
+				displayName: 'Prompt (Optional)',
+				name: 'prompt',
+				type: 'string',
+				default: '',
+				description: 'Optional. A general instruction or question to guide the AI for the entire extraction process. This can be used to provide context or specify a particular style of output for all attributes.',
+				displayOptions: {
+					show: {
+						operation: ['extractUrl', 'parseHtml'],
+					},
+				},
+				placeholder: 'Enter a prompt',
+				typeOptions: {
+					rows: 3,
 				},
 			},
 			{
@@ -574,7 +599,7 @@ export class AiScraper implements INodeType {
 				name: 'attributesFields',
 				type: 'fixedCollection',
 				default: { fieldValues: [{ fieldName: '', fieldType: 'any', fieldDescription: '' }] },
-				description: 'Define data fields to extract. Each attribute requires a Field Name, Type, and Description.',
+				description: 'Define data fields to extract. Each attribute requires a Field Name and Type. Description is optional.',
 				placeholder: 'Add Attribute',
 				typeOptions: {
 					multipleValues: true,
@@ -592,6 +617,7 @@ export class AiScraper implements INodeType {
 								default: '',
 								required: true,
 								description: 'The name of the data field (e.g., productName, price). This will be the key in the output JSON.',
+								placeholder: 'Enter field name',
 							},
 							{
 								displayName: 'Type',
@@ -611,12 +637,12 @@ export class AiScraper implements INodeType {
 								]
 							},
 							{
-								displayName: 'Field Description',
+								displayName: 'Field Description (Optional)',
 								name: 'fieldDescription',
 								type: 'string',
 								default: '',
-								required: true,
-								description: 'Natural language instruction on what data to extract for this field'
+								description: 'Natural language instruction on what data to extract for this field.',
+								placeholder: 'Enter field description',
 							},
 						],
 					},
@@ -632,11 +658,12 @@ export class AiScraper implements INodeType {
 				displayName: 'Attributes (JSON)',
 				name: 'attributesJson',
 				type: 'json',
-				default: '{\n  "example_attribute_name": {\n    "description": "Natural language description of what data to extract.",\n    "type": "string"\n  }\n}',
-				description: 'Define attributes as a JSON object. Each key is a field name, and its value is an object like: `{"description": "details...", "type": "string"}`. Allowed types: any, string, integer, number, bool, list, object.',
+				default: '{\n  "example_attribute_name": {\n    "description": "Optional: Natural language description of what data to extract.",\n    "type": "string"\n  }\n}',
+				description: 'Define attributes as a JSON object. Each key is a field name, and its value is an object like: `{"description": "details...", "type": "string"}`. Description is optional. Allowed types: any, string, integer, number, bool, list, object.',
 				typeOptions: { rows: 8 },
 				displayOptions: {
 					show: {
+						resource: ['extractor'],
 						operation: ['extractUrl', 'parseHtml'],
 						attributesInputMode: ['json'],
 					},
@@ -652,7 +679,12 @@ export class AiScraper implements INodeType {
 					{ name: 'Standard', value: 'standard', description: 'Balanced speed and accuracy' },
 					{ name: 'Precision', value: 'precision', description: 'Extract data hidden inside HTML structures' },
 				],
-				displayOptions: { show: { operation: ['extractUrl', 'parseHtml'] } },
+				displayOptions: {
+					show: {
+						resource: ['extractor'],
+						operation: ['extractUrl', 'parseHtml']
+					}
+				},
 			},
 			{
 				displayName: 'Proxy Country',
