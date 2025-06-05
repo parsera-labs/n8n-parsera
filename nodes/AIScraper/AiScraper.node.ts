@@ -641,8 +641,8 @@ export class AiScraper implements INodeType {
 								name: 'fieldDescription',
 								type: 'string',
 								default: '',
-								description: 'Natural language instruction on what data to extract for this field.',
-								placeholder: 'Enter field description',
+								description: 'Natural language instruction on what data to extract for this field',
+								placeholder: 'Enter field description'
 							},
 						],
 					},
