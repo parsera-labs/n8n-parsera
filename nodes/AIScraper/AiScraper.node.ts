@@ -34,8 +34,7 @@ export class AiScraper implements INodeType {
 			},
 		],
 		requestDefaults: {
-			// baseURL: 'https://api.parsera.org/v1',
-			baseURL: 'http://0.0.0.0:8080/v1',
+			baseURL: 'https://api.parsera.org/v1',
 			headers: {
 				'Content-Type': 'application/json',
 			},
