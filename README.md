@@ -30,8 +30,8 @@ The Parsera AI Scraper node supports the following operations:
 *   **Extractor:**
     *   **Extract from URL:** Provide a URL, and Parsera will fetch the content and extract data based on your defined attributes. Supports proxy usage and sending cookies.
     *   **Parse HTML:** Provide raw HTML content, and Parsera will parse it to extract data based on your defined attributes.
-*   **Agent Scrape:**
-    *   **Agent Scrape:** Utilize a pre-configured scraping agent on the Parsera platform to scrape a given URL. **Note:** The Parsera agent itself must be created separately via the [Parsera application](https://parsera.org) or Parsera API before it can be used by this n8n node operation. This operation uses a different base URL (`https://agents.parsera.org/v1`) and also supports proxy usage and sending cookies.
+*   **Scraping Agent:**
+    *   **Scraping Agent:** Utilize a pre-configured scraping agent on the Parsera platform to scrape a given URL. **Note:** The Parsera agent itself must be created separately via the [Parsera application](https://parsera.org) or Parsera API before it can be used by this n8n node operation. This operation uses a different base URL (`https://agents.parsera.org/v1`) and also supports proxy usage and sending cookies.
 
 ## Credentials
 
@@ -52,7 +52,7 @@ This node allows you to extract structured data from websites.
 
 **Key Parameters:**
 
-*   **Resource:** Choose between "Extractor" (for direct URL/HTML extraction) and "Agent Scrape" (for using pre-configured Parsera agents).
+*   **Resource:** Choose between "Extractor" (for direct URL/HTML extraction) and "Scraping Agent" (for using pre-configured Parsera agents).
 *   **Operation:** Select the specific action based on the chosen resource.
 *   **URL/Content:** Provide the target URL or raw HTML content, depending on the operation.
 *   **Prompt:** Provide context and general instructions to scraper.
@@ -68,7 +68,7 @@ This node allows you to extract structured data from websites.
     *   **Precision:** Focuses on higher accuracy, potentially at the cost of speed or resources.
 *   **Proxy Country:** Optionally route your request through a proxy in a specific country to access geo-restricted content.
 *   **Cookies:** Optionally provide cookies as a JSON array to be sent with the request (e.g., for authenticated sessions). Format: `[{"name": "cookieName", "value": "cookieValue", "domain": ".example.com"}]`.
-*   **Agent Name (for Agent Scrape Resource):** The name of the pre-configured agent on the Parsera platform. This agent must have been created beforehand in your Parsera account.
+*   **Agent Name (for Scraping Agent Resource):** The name of the pre-configured agent on the Parsera platform. This agent must have been created beforehand in your Parsera account.
 
 The output of the node will be a list of items containing the extracted data.
 

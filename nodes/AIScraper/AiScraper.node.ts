@@ -48,7 +48,7 @@ export class AiScraper implements INodeType {
 				noDataExpression: true,
 				options: [
 					{ name: 'Extractor', value: 'extractor' },
-					{ name: 'Agent Scrape', value: 'agent' },
+					{ name: 'Scraping Agent', value: 'agent' },
 				],
 				default: 'extractor',
 			},
@@ -126,7 +126,7 @@ export class AiScraper implements INodeType {
 						name: 'Agent Scrape',
 						value: 'agentScrape',
 						description: 'Scrape webpage with pre-configured agent',
-						action: 'Scrape with agent',
+						action: 'Scrape from URL',
 						routing: {
 							request: {
 								method: 'POST',

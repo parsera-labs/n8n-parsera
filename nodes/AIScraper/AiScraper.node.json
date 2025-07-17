@@ -8,12 +8,12 @@
 	"resources": {
 		"credentialDocumentation": [
 			{
-				"url": "https://docs.parsera.org/api/getting-started/"
+				"url": "https://parsera.org/blog/AI-Scraper-by-Parsera-n8n-user-manual"
 			}
 		],
 		"primaryDocumentation": [
 			{
-				"url": "https://docs.parsera.org/api/getting-started/"
+				"url": "https://parsera.org/blog/AI-Scraper-by-Parsera-n8n-user-manual"
 			}
 		]
 	},
