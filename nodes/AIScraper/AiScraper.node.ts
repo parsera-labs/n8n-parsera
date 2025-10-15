@@ -242,7 +242,7 @@ export class AiScraper implements INodeType {
 				name: 'attributesFields',
 				type: 'fixedCollection',
 				default: { fieldValues: [{ fieldName: '', fieldType: 'any', fieldDescription: '' }] },
-				description: 'Define data fields to extract. Each column requires a Name and Type',
+				description: 'Define data fields to extract. Each column requires a Name and Type.',
 				placeholder: 'Add Column',
 				typeOptions: {
 					multipleValues: true,
