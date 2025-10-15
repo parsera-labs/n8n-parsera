@@ -213,23 +213,23 @@ export class AiScraper implements INodeType {
 				},
 			},
 			{
-				displayName: 'Attributes Input Mode',
+				displayName: 'Columns Input Mode',
 				name: 'attributesInputMode',
 				type: 'options',
 				options: [
 					{
 						name: 'Fields',
 						value: 'fields',
-						description: 'Define using individual fields'
+						description: 'Define in separate fields'
 					},
 					{
 						name: 'JSON',
 						value: 'json',
-						description: 'Define as a single JSON object'
+						description: 'Define with a JSON Schema'
 					},
 				],
 				default: 'fields',
-				description: 'Select how to define attributes. "JSON" is often preferred for AI tool integration or complex schemas.',
+				description: 'Select how to define columns. "JSON" is often preferred for AI tool integration or complex schemas.',
 				displayOptions: {
 					show: {
 						operation: ['extractUrl', 'parseHtml'],
@@ -238,12 +238,12 @@ export class AiScraper implements INodeType {
 				noDataExpression: true,
 			},
 			{
-				displayName: 'Attributes',
+				displayName: 'Columns',
 				name: 'attributesFields',
 				type: 'fixedCollection',
 				default: { fieldValues: [{ fieldName: '', fieldType: 'any', fieldDescription: '' }] },
-				description: 'Define data fields to extract. Each attribute requires a Field Name and Type. Description is optional.',
-				placeholder: 'Add Attribute',
+				description: 'Define data fields to extract. Each column requires a Name and Type',
+				placeholder: 'Add Column',
 				typeOptions: {
 					multipleValues: true,
 					sortable: true,
@@ -251,15 +251,15 @@ export class AiScraper implements INodeType {
 				options: [
 					{
 						name: 'fieldValues',
-						displayName: 'Attribute Definitions',
+						displayName: 'Column Definitions',
 						values: [
 							{
-								displayName: 'Field Name',
+								displayName: 'Name',
 								name: 'fieldName',
 								type: 'string',
 								default: '',
 								required: true,
-								description: 'The name of the data field (e.g., productName, price). This will be the key in the output JSON.',
+								description: 'The name of the column (e.g., productName, price). This will be the key in the output JSON.',
 								placeholder: 'Enter field name',
 							},
 							{
@@ -268,7 +268,7 @@ export class AiScraper implements INodeType {
 								type: 'options',
 								default: 'any',
 								required: true,
-								description: 'The type of the data field',
+								description: 'The type of the column',
 								options: [
 									{ name: 'Any', value: 'any', description: 'Any data type' },
 									{ name: 'Boolean', value: 'bool', description: 'True or false' },
@@ -279,12 +279,12 @@ export class AiScraper implements INodeType {
 								]
 							},
 							{
-								displayName: 'Field Description (Optional)',
+								displayName: 'Column Prompt (Optional)',
 								name: 'fieldDescription',
 								type: 'string',
 								default: '',
-								description: 'Natural language instruction on what data to extract for this field',
-								placeholder: 'Enter field description'
+								description: 'Describe what data to place in this column',
+								placeholder: 'Enter column description'
 							},
 						],
 					},
@@ -297,11 +297,11 @@ export class AiScraper implements INodeType {
 				},
 			},
 			{
-				displayName: 'Attributes (JSON)',
+				displayName: 'Schema (JSON)',
 				name: 'attributesJson',
 				type: 'json',
 				default: '{\n  "example_attribute_name": {\n    "description": "Optional: Natural language description of what data to extract.",\n    "type": "string"\n  }\n}',
-				description: 'Define attributes as a JSON object. Each key is a field name, and its value is an object like: `{"description": "details...", "type": "string"}`. Description is optional. Allowed types: any, string, integer, number, bool, list, object.',
+				description: 'Define columns as a JSON object. Each key is a field name, and its value is an object like: `{"description": "details...", "type": "string"}`. Description is optional. Allowed types: any, string, integer, number, bool, list, object.',
 				typeOptions: { rows: 8 },
 				displayOptions: {
 					show: {
