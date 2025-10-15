@@ -275,7 +275,6 @@ export class AiScraper implements INodeType {
 									{ name: 'Integer', value: 'integer', description: 'Whole number' },
 									{ name: 'List', value: 'list', description: 'An array of values' },
 									{ name: 'Number', value: 'number', description: 'Number with decimals' },
-									{ name: 'Object', value: 'object', description: 'A key-value map' },
 									{ name: 'String', value: 'string', description: 'Text value' },
 								]
 							},
