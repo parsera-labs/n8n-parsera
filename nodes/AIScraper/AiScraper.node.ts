@@ -1,6 +1,8 @@
 import {
 	INodeType,
 	INodeTypeDescription,
+	ILoadOptionsFunctions,
+	INodePropertyOptions,
 } from 'n8n-workflow';
 import { ProxyCountryList, ProxyCountryOption } from './proxy-countries.data';
 import {
@@ -155,10 +157,13 @@ export class AiScraper implements INodeType {
 			{
 				displayName: 'Agent Name',
 				name: 'agentName',
-				type: 'string',
+				type: 'options',
 				default: '',
 				required: true,
 				description: 'Name of the agent to use for scraping',
+				typeOptions: {
+					loadOptionsMethod: 'loadAgents',
+				},
 				displayOptions: {
 					show: {
 						operation: ['agentScrape'],
@@ -350,4 +355,26 @@ export class AiScraper implements INodeType {
 			},
 		]
 	} as INodeTypeDescription;
+
+	methods = {
+		loadOptions: {
+			async loadAgents(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				const response = await this.helpers.requestWithAuthentication.call(this, 'aiScraperApi', {
+					method: 'GET',
+					baseURL: 'https://agents.parsera.org/v1',
+					url: '/list',
+					json: true,
+				});
+
+				const agents = (response as any)?.agents?.user || [];
+				
+				return agents
+					.filter((agent: any) => agent.status === 'ready')
+					.map((agent: any) => ({
+						name: agent.id,
+						value: agent.id,
+					}));
+			},
+		},
+	};
 }
