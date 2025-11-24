@@ -127,12 +127,13 @@ export class AiScraper implements INodeType {
 					{
 						name: 'Agent Scrape',
 						value: 'agentScrape',
-						description: 'Scrape webpage with pre-configured agent',
+						description: 'Scrape webpage with pre-configured scraper',
 						action: 'Scrape from URL',
 						routing: {
 							request: {
 								method: 'POST',
-								baseURL: 'https://agents.parsera.org/v1', // Specific baseURL for this operation
+								// baseURL and url will be determined dynamically in preSend
+								baseURL: 'https://agents.parsera.org/v1',
 								url: '/scrape',
 								body: {
 									name: '={{$parameter["agentName"]}}',
@@ -359,21 +360,59 @@ export class AiScraper implements INodeType {
 	methods = {
 		loadOptions: {
 			async loadAgents(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
-				const response = await this.helpers.requestWithAuthentication.call(this, 'aiScraperApi', {
-					method: 'GET',
-					baseURL: 'https://agents.parsera.org/v1',
-					url: '/list',
-					json: true,
-				});
+				const options: INodePropertyOptions[] = [];
 
-				const agents = (response as any)?.agents?.user || [];
-				
-				return agents
-					.filter((agent: any) => agent.status === 'ready')
-					.map((agent: any) => ({
-						name: agent.id,
-						value: agent.id,
+				// Fetch agents from agents.parsera.org
+				try {
+					const agentsResponse = await this.helpers.requestWithAuthentication.call(this, 'aiScraperApi', {
+						method: 'GET',
+						baseURL: 'https://agents.parsera.org/v1',
+						url: '/list',
+						json: true,
+					});
+
+					const agents = (agentsResponse as any)?.agents?.user || [];
+					
+					const agentOptions = agents
+						.filter((agent: any) => agent.status === 'ready')
+						.map((agent: any) => {
+							const agentName = agent.name || agent.id;
+							return {
+								name: `[Scraper] ${agentName}`,
+								value: `scraper:${agentName}`,
+							};
+						});
+					
+					options.push(...agentOptions);
+				} catch (error) {
+					// Silently fail if agents.parsera.org is unavailable
+					// Error is ignored to allow fallback to template scrapers
+				}
+
+				// Fetch scrapers/templates from v1/scrapers
+				try {
+					const scrapersResponse = await this.helpers.requestWithAuthentication.call(this, 'aiScraperApi', {
+						method: 'GET',
+						baseURL: 'https://api.parsera.org/v1',
+						url: '/scrapers',
+						json: true,
+					});
+
+					const scrapers = Array.isArray(scrapersResponse) ? scrapersResponse : [];
+					
+					const scraperOptions = scrapers.map((scraper: any) => ({
+						name: `[Template] ${scraper.name || scraper.id}`,
+						value: `template:${scraper.id}`,
+						description: `ID: ${scraper.id}`,
 					}));
+					
+					options.push(...scraperOptions);
+				} catch (error) {
+					// Silently fail if v1/scrapers is unavailable
+					// Error is ignored to allow fallback to agent scrapers
+				}
+
+				return options;
 			},
 		},
 	};

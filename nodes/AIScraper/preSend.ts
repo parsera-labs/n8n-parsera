@@ -158,13 +158,52 @@ export async function prepareScrapeRequestBody(
 	if (typeof agentNameFromBody !== 'string' || !agentNameFromBody.trim()) {
 		throw new NodeOperationError(node, 'Agent Name is required for Agent Scrape operation.', { itemIndex: currentItemIndex });
 	}
-	body.name = agentNameFromBody.trim();
+	const agentName = agentNameFromBody.trim();
 
 	const urlFromBody = body.url;
 	if (typeof urlFromBody !== 'string' || !urlFromBody.trim()) {
 		throw new NodeOperationError(node, 'URL is required for Agent Scrape operation.', { itemIndex: currentItemIndex });
 	}
-	body.url = urlFromBody.trim();
+	const url = urlFromBody.trim();
+
+	// Check if this is a template scraper (starts with "template:") or agent scraper (starts with "scraper:")
+	if (agentName.startsWith('template:')) {
+		// Template scraper - use v1/scrapers/run endpoint
+		const templateId = agentName.substring('template:'.length);
+		if (!templateId) {
+			throw new NodeOperationError(node, 'Invalid template ID.', { itemIndex: currentItemIndex });
+		}
+
+		// Update request to use template endpoint
+		requestOptions.baseURL = 'https://api.parsera.org/v1';
+		requestOptions.url = '/scrapers/run';
+		
+		// Replace body with template format
+		body.template_id = templateId;
+		body.url = url;
+		delete body.name; // Remove name field for template endpoint
+	} else if (agentName.startsWith('scraper:')) {
+		// Agent scraper - use agents.parsera.org/v1/scrape endpoint
+		const agentId = agentName.substring('scraper:'.length);
+		if (!agentId) {
+			throw new NodeOperationError(node, 'Invalid agent ID.', { itemIndex: currentItemIndex });
+		}
+
+		// Update request to use agent endpoint
+		requestOptions.baseURL = 'https://agents.parsera.org/v1';
+		requestOptions.url = '/scrape';
+		
+		// Use agent ID as the name (as per API requirement)
+		body.name = agentId;
+		body.url = url;
+	} else {
+		// Legacy format - assume it's an agent name without prefix
+		// Keep existing behavior for backward compatibility
+		requestOptions.baseURL = 'https://agents.parsera.org/v1';
+		requestOptions.url = '/scrape';
+		body.name = agentName;
+		body.url = url;
+	}
 
 	addCookiesToBody(this, body);
 
