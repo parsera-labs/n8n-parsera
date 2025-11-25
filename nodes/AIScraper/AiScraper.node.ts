@@ -128,7 +128,7 @@ export class AiScraper implements INodeType {
 						name: 'Existing Scraper',
 						value: 'runScraper',
 						description: 'Scraper made in parsera.org with advanced features, such as scraping code generation',
-						action: 'Scraper made in parsera.org with advanced features',
+						action: 'Scraper made in parsera org with advanced features',
 						routing: {
 							request: {
 								method: 'POST',
@@ -156,12 +156,12 @@ export class AiScraper implements INodeType {
 				default: 'runScraper',
 			},
 			{
-				displayName: 'Scraper Name',
+				displayName: 'Scraper Name or ID',
 				name: 'existingScraperName',
 				type: 'options',
 				default: '',
 				required: true,
-				description: 'Name of the existing scraper to use for scraping',
+				description: 'Name of the existing scraper to use for scraping. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code-examples/expressions/">expression</a>.',
 				typeOptions: {
 					loadOptionsMethod: 'loadExistingScrapers',
 				},
@@ -190,7 +190,6 @@ export class AiScraper implements INodeType {
 				name: 'url',
 				type: 'string',
 				default: '',
-				required: false,
 				description: 'Optional URL of the webpage to scrape. If not provided, the scraper will use its default URL configuration.',
 				placeholder: 'Enter URL (optional)',
 				displayOptions: {
@@ -415,8 +414,8 @@ export class AiScraper implements INodeType {
 					const scrapers = Array.isArray(scrapersResponse) ? scrapersResponse : [];
 					
 					const scraperOptions = scrapers.map((scraper: any) => ({
-						name: `[Template] ${scraper.name || scraper.id}`,
-						value: `template:${scraper.id}`,
+						name: scraper.name || scraper.id,
+						value: scraper.id,
 						description: `ID: ${scraper.id}`,
 					}));
 					

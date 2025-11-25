@@ -168,25 +168,8 @@ export async function prepareScrapeRequestBody(
 	// Remove url from body - we'll add it back conditionally if it exists
 	delete body.url;
 
-	// Check if this is a template scraper (starts with "template:") or existing scraper (starts with "scraper:")
-	if (existingScraperName.startsWith('template:')) {
-		// Template scraper - use v1/scrapers/run endpoint
-		const templateId = existingScraperName.substring('template:'.length);
-		if (!templateId) {
-			throw new NodeOperationError(node, 'Invalid template ID.', { itemIndex: currentItemIndex });
-		}
-
-		// Update request to use template endpoint
-		requestOptions.baseURL = 'https://api.parsera.org/v1';
-		requestOptions.url = '/scrapers/run';
-		
-		// Replace body with template format
-		body.template_id = templateId;
-		if (url) {
-			body.url = url;
-		}
-		delete body.name; // Remove name field for template endpoint
-	} else if (existingScraperName.startsWith('scraper:')) {
+	// Check if this is a template (no prefix) or existing scraper (starts with "scraper:")
+	if (existingScraperName.startsWith('scraper:')) {
 		// Existing scraper - use agents.parsera.org/v1/scrape endpoint
 		const existingScraperId = existingScraperName.substring('scraper:'.length);
 		if (!existingScraperId) {
@@ -203,14 +186,23 @@ export async function prepareScrapeRequestBody(
 			body.url = url;
 		}
 	} else {
-		// Legacy format - assume it's an existing scraper name without prefix
-		// Keep existing behavior for backward compatibility
-		requestOptions.baseURL = 'https://agents.parsera.org/v1';
-		requestOptions.url = '/scrape';
-		body.name = existingScraperName;
+		// Template scraper (no prefix) - use v1/scrapers/run endpoint
+		// Also handles legacy format for backward compatibility
+		const templateId = existingScraperName;
+		if (!templateId) {
+			throw new NodeOperationError(node, 'Invalid template ID.', { itemIndex: currentItemIndex });
+		}
+
+		// Update request to use template endpoint
+		requestOptions.baseURL = 'https://api.parsera.org/v1';
+		requestOptions.url = '/scrapers/run';
+		
+		// Replace body with template format
+		body.template_id = templateId;
 		if (url) {
 			body.url = url;
 		}
+		delete body.name; // Remove name field for template endpoint
 	}
 
 	addCookiesToBody(this, body);
