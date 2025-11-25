@@ -132,14 +132,14 @@ export class AiScraper implements INodeType {
 						routing: {
 							request: {
 								method: 'POST',
-								// baseURL and url will be determined dynamically in preSend
-								baseURL: 'https://agents.parsera.org/v1',
-								url: '/scrape',
+								baseURL: 'https://api.parsera.org/v1',
+								url: '/scrapers/run',
 								body: {
 									name: '={{$parameter["existingScraperName"]}}',
 									url: '={{$parameter["url"] || undefined}}',
 									proxy_country: '={{$parameter["proxyCountry"]}}',
 									// cookies are added by preSend function
+									// name will be converted to template_id in preSend
 								},
 							},
 							send: {
@@ -373,36 +373,8 @@ export class AiScraper implements INodeType {
 	methods = {
 		loadOptions: {
 			async loadExistingScrapers(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
-				const options: INodePropertyOptions[] = [];
-
-				// Fetch existing scrapers from agents.parsera.org
-				try {
-					const existingScrapersResponse = await this.helpers.requestWithAuthentication.call(this, 'aiScraperApi', {
-						method: 'GET',
-						baseURL: 'https://agents.parsera.org/v1',
-						url: '/list',
-						json: true,
-					});
-
-					const existingScrapers = (existingScrapersResponse as any)?.agents?.user || [];
-					
-					const existingScraperOptions = existingScrapers
-						.filter((existingScraper: any) => existingScraper.status === 'ready')
-						.map((existingScraper: any) => {
-							const existingScraperName = existingScraper.name || existingScraper.id;
-							return {
-								name: `[Scraper] ${existingScraperName}`,
-								value: `scraper:${existingScraperName}`,
-							};
-						});
-					
-					options.push(...existingScraperOptions);
-				} catch (error) {
-					// Silently fail if agents.parsera.org is unavailable
-					// Error is ignored to allow fallback to template scrapers
-				}
-
-				// Fetch scrapers/templates from v1/scrapers
+				// Fetch scrapers/templates from unified v1/scrapers endpoint
+				// This endpoint returns both templates and old scrapers (with "scraper:" prefix)
 				try {
 					const scrapersResponse = await this.helpers.requestWithAuthentication.call(this, 'aiScraperApi', {
 						method: 'GET',
@@ -415,17 +387,15 @@ export class AiScraper implements INodeType {
 					
 					const scraperOptions = scrapers.map((scraper: any) => ({
 						name: scraper.name || scraper.id,
-						value: scraper.id,
-						description: `ID: ${scraper.id}`,
+						value: scraper.id, // ID already includes "scraper:" prefix for old scrapers
+						description: scraper.id.startsWith('scraper:') ? 'Old Scraper' : 'Template',
 					}));
 					
-					options.push(...scraperOptions);
+					return scraperOptions;
 				} catch (error) {
-					// Silently fail if v1/scrapers is unavailable
-					// Error is ignored to allow fallback to existing scrapers
+					// Return empty array if endpoint is unavailable
+					return [];
 				}
-
-				return options;
 			},
 		},
 	};

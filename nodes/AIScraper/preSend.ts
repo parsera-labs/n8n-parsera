@@ -158,51 +158,15 @@ export async function prepareScrapeRequestBody(
 	if (typeof existingScraperNameFromBody !== 'string' || !existingScraperNameFromBody.trim()) {
 		throw new NodeOperationError(node, 'Existing Scraper Name is required for Existing Scraper Scrape operation.', { itemIndex: currentItemIndex });
 	}
-	const existingScraperName = existingScraperNameFromBody.trim();
+	const templateId = existingScraperNameFromBody.trim();
 
-	const urlFromBody = body.url;
-	let url: string | undefined;
-	if (urlFromBody && typeof urlFromBody === 'string' && urlFromBody.trim()) {
-		url = urlFromBody.trim();
-	}
-	// Remove url from body - we'll add it back conditionally if it exists
-	delete body.url;
+	// Remove name field and use template_id instead (unified interface)
+	delete body.name;
+	body.template_id = templateId;
 
-	// Check if this is a template (no prefix) or existing scraper (starts with "scraper:")
-	if (existingScraperName.startsWith('scraper:')) {
-		// Existing scraper - use agents.parsera.org/v1/scrape endpoint
-		const existingScraperId = existingScraperName.substring('scraper:'.length);
-		if (!existingScraperId) {
-			throw new NodeOperationError(node, 'Invalid existing scraper ID.', { itemIndex: currentItemIndex });
-		}
-
-		// Update request to use existing scraper endpoint
-		requestOptions.baseURL = 'https://agents.parsera.org/v1';
-		requestOptions.url = '/scrape';
-		
-		// Use existing scraper ID as the name (as per API requirement)
-		body.name = existingScraperId;
-		if (url) {
-			body.url = url;
-		}
-	} else {
-		// Template scraper (no prefix) - use v1/scrapers/run endpoint
-		// Also handles legacy format for backward compatibility
-		const templateId = existingScraperName;
-		if (!templateId) {
-			throw new NodeOperationError(node, 'Invalid template ID.', { itemIndex: currentItemIndex });
-		}
-
-		// Update request to use template endpoint
-		requestOptions.baseURL = 'https://api.parsera.org/v1';
-		requestOptions.url = '/scrapers/run';
-		
-		// Replace body with template format
-		body.template_id = templateId;
-		if (url) {
-			body.url = url;
-		}
-		delete body.name; // Remove name field for template endpoint
+	// URL is already in body from routing config, just ensure it's trimmed if present
+	if (body.url && typeof body.url === 'string') {
+		body.url = body.url.trim();
 	}
 
 	addCookiesToBody(this, body);
