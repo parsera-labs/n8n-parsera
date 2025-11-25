@@ -154,22 +154,24 @@ export async function prepareScrapeRequestBody(
 	const body = requestOptions.body as Record<string, any>;
 	body.source = "n8n";
 
-	const agentNameFromBody = body.name;
-	if (typeof agentNameFromBody !== 'string' || !agentNameFromBody.trim()) {
-		throw new NodeOperationError(node, 'Agent Name is required for Agent Scrape operation.', { itemIndex: currentItemIndex });
+	const existingScraperNameFromBody = body.name;
+	if (typeof existingScraperNameFromBody !== 'string' || !existingScraperNameFromBody.trim()) {
+		throw new NodeOperationError(node, 'Existing Scraper Name is required for Existing Scraper Scrape operation.', { itemIndex: currentItemIndex });
 	}
-	const agentName = agentNameFromBody.trim();
+	const existingScraperName = existingScraperNameFromBody.trim();
 
 	const urlFromBody = body.url;
-	if (typeof urlFromBody !== 'string' || !urlFromBody.trim()) {
-		throw new NodeOperationError(node, 'URL is required for Agent Scrape operation.', { itemIndex: currentItemIndex });
+	let url: string | undefined;
+	if (urlFromBody && typeof urlFromBody === 'string' && urlFromBody.trim()) {
+		url = urlFromBody.trim();
 	}
-	const url = urlFromBody.trim();
+	// Remove url from body - we'll add it back conditionally if it exists
+	delete body.url;
 
-	// Check if this is a template scraper (starts with "template:") or agent scraper (starts with "scraper:")
-	if (agentName.startsWith('template:')) {
+	// Check if this is a template scraper (starts with "template:") or existing scraper (starts with "scraper:")
+	if (existingScraperName.startsWith('template:')) {
 		// Template scraper - use v1/scrapers/run endpoint
-		const templateId = agentName.substring('template:'.length);
+		const templateId = existingScraperName.substring('template:'.length);
 		if (!templateId) {
 			throw new NodeOperationError(node, 'Invalid template ID.', { itemIndex: currentItemIndex });
 		}
@@ -180,29 +182,35 @@ export async function prepareScrapeRequestBody(
 		
 		// Replace body with template format
 		body.template_id = templateId;
-		body.url = url;
+		if (url) {
+			body.url = url;
+		}
 		delete body.name; // Remove name field for template endpoint
-	} else if (agentName.startsWith('scraper:')) {
-		// Agent scraper - use agents.parsera.org/v1/scrape endpoint
-		const agentId = agentName.substring('scraper:'.length);
-		if (!agentId) {
-			throw new NodeOperationError(node, 'Invalid agent ID.', { itemIndex: currentItemIndex });
+	} else if (existingScraperName.startsWith('scraper:')) {
+		// Existing scraper - use agents.parsera.org/v1/scrape endpoint
+		const existingScraperId = existingScraperName.substring('scraper:'.length);
+		if (!existingScraperId) {
+			throw new NodeOperationError(node, 'Invalid existing scraper ID.', { itemIndex: currentItemIndex });
 		}
 
-		// Update request to use agent endpoint
+		// Update request to use existing scraper endpoint
 		requestOptions.baseURL = 'https://agents.parsera.org/v1';
 		requestOptions.url = '/scrape';
 		
-		// Use agent ID as the name (as per API requirement)
-		body.name = agentId;
-		body.url = url;
+		// Use existing scraper ID as the name (as per API requirement)
+		body.name = existingScraperId;
+		if (url) {
+			body.url = url;
+		}
 	} else {
-		// Legacy format - assume it's an agent name without prefix
+		// Legacy format - assume it's an existing scraper name without prefix
 		// Keep existing behavior for backward compatibility
 		requestOptions.baseURL = 'https://agents.parsera.org/v1';
 		requestOptions.url = '/scrape';
-		body.name = agentName;
-		body.url = url;
+		body.name = existingScraperName;
+		if (url) {
+			body.url = url;
+		}
 	}
 
 	addCookiesToBody(this, body);
