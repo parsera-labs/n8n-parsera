@@ -51,7 +51,7 @@ export class AiScraper implements INodeType {
 				type: 'options',
 				noDataExpression: true,
 				options: [
-					{ name: 'URL Extractor', value: 'url-extractor' },
+					{ name: 'Extractor', value: 'url-extractor' },
 					{ name: 'Scraping Agent', value: 'scraping-agent' },
 					{ name: 'Reusable Scraper', value: 'reusable-scrapers' },
 				],
@@ -65,10 +65,10 @@ export class AiScraper implements INodeType {
 				displayOptions: { show: { resource: ['url-extractor'] } },
 				options: [
 					{
-						name: 'Extract From URL',
+						name: 'Extract URL',
 						value: 'scrapeUrl',
 						description: 'Provide URL and Data Description',
-						action: 'Extract from url',
+						action: 'Extract from URL',
 						routing: {
 							request: {
 								method: 'POST',
@@ -117,7 +117,7 @@ export class AiScraper implements INodeType {
 						name: 'Extract Markdown',
 						value: 'extractMarkdown',
 						description: 'Convert a URL to clean markdown text',
-						action: 'Extract markdown from url',
+						action: 'Extract markdown from URL',
 						routing: {
 							request: {
 								method: 'POST',
@@ -148,10 +148,10 @@ export class AiScraper implements INodeType {
 				displayOptions: { show: { resource: ['scraping-agent'] } },
 				options: [
 					{
-						name: 'Navigate, Interact, Extract Any Data',
+						name: 'Interact and Extract',
 						value: 'agentExtract',
 						description: 'Use AI agent to navigate, interact with and extract data from a webpage',
-						action: 'Navigate interact extract any data',
+						action: 'Navigate interact and extract any data',
 						routing: {
 							request: {
 								method: 'POST',
@@ -181,7 +181,7 @@ export class AiScraper implements INodeType {
 				displayOptions: { show: { resource: ['reusable-scrapers'] } },
 				options: [
 					{
-						name: 'Run Scraper Configured on Parsera.org',
+						name: 'Run Configured Scraper',
 						value: 'runScraper',
 						description: 'Run a scraper configured on parsera.org',
 						action: 'Run scraper configured on parsera org',
@@ -215,7 +215,7 @@ export class AiScraper implements INodeType {
 				type: 'options',
 				default: '',
 				required: true,
-				description: 'Name of the existing scraper to use for scraping. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code-examples/expressions/">expression</a>.',
+				description: 'Name of the existing scraper to use for scraping. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code-examples/expressions/">expression</a>. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 				typeOptions: {
 					loadOptionsMethod: 'loadExistingScrapers',
 				},
