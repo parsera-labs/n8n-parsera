@@ -13,6 +13,34 @@ import {
 } from './parseAttributes';
 
 
+function sanitizeUrl(
+	node: ReturnType<IExecuteSingleFunctions['getNode']>,
+	raw: unknown,
+	itemIndex: number,
+): string {
+	if (typeof raw !== 'string' || !raw.trim()) {
+		throw new NodeOperationError(node, 'URL is required.', { itemIndex });
+	}
+
+	let url = raw.trim();
+
+	// Auto-prepend https:// if scheme is missing
+	if (!/^https?:\/\//i.test(url)) {
+		url = 'https://' + url;
+	}
+
+	// Basic format check: must have a dot, no spaces
+	if (/\s/.test(url) || !/^https?:\/\/[^\s/]+\.[^\s/]+/.test(url)) {
+		throw new NodeOperationError(
+			node,
+			`Invalid URL: "${raw.trim()}". Please provide a valid URL (e.g. https://example.com).`,
+			{ itemIndex },
+		);
+	}
+
+	return url;
+}
+
 function addAttributesToBody(
 	context: IExecuteSingleFunctions,
 	body: Record<string, any>
@@ -100,11 +128,7 @@ export async function prepareExtractRequestBody(
 		body.prompt = prompt.trim();
 	}
 
-	const urlFromBody = body.url;
-	if (typeof urlFromBody !== 'string' || !urlFromBody.trim()) {
-		throw new NodeOperationError(node, 'URL is required.', { itemIndex: currentItemIndex });
-	}
-	body.url = urlFromBody.trim();
+	body.url = sanitizeUrl(node, body.url, currentItemIndex);
 
 	addAttributesToBody(this, body);
 	addCookiesToBody(this, body);
@@ -154,12 +178,7 @@ export async function prepareAgentExtractRequestBody(
 	const body = requestOptions.body as Record<string, any>;
 	body.source = "n8n";
 
-	// URL validation
-	const urlFromBody = body.url;
-	if (typeof urlFromBody !== 'string' || !urlFromBody.trim()) {
-		throw new NodeOperationError(node, 'URL is required.', { itemIndex: currentItemIndex });
-	}
-	body.url = urlFromBody.trim();
+	body.url = sanitizeUrl(node, body.url, currentItemIndex);
 
 	// Prompt (required for agent extract)
 	const prompt = this.getNodeParameter('agentPrompt', currentItemIndex) as string;
@@ -204,11 +223,7 @@ export async function prepareExtractMarkdownRequestBody(
 	const body = requestOptions.body as Record<string, any>;
 	body.source = "n8n";
 
-	const urlFromBody = body.url;
-	if (typeof urlFromBody !== 'string' || !urlFromBody.trim()) {
-		throw new NodeOperationError(node, 'URL is required.', { itemIndex: currentItemIndex });
-	}
-	body.url = urlFromBody.trim();
+	body.url = sanitizeUrl(node, body.url, currentItemIndex);
 
 	return requestOptions;
 }

@@ -38,7 +38,7 @@ export class AiScraper implements INodeType {
 			},
 		],
 		requestDefaults: {
-			baseURL: 'http://localhost:8080/v1',
+			baseURL: 'https://api.parsera.org/v1',
 			headers: {
 				'Content-Type': 'application/json',
 			},
@@ -188,7 +188,7 @@ export class AiScraper implements INodeType {
 						routing: {
 							request: {
 								method: 'POST',
-								baseURL: 'http://localhost:8080/v1',
+								baseURL: 'https://api.parsera.org/v1',
 								url: '/scrapers/run_async',
 								body: {
 									name: '={{$parameter["existingScraperName"]}}',
@@ -563,7 +563,7 @@ export class AiScraper implements INodeType {
 				try {
 					const scrapersResponse = await this.helpers.requestWithAuthentication.call(this, 'aiScraperApi', {
 						method: 'GET',
-						baseURL: 'http://localhost:8080/v1',
+						baseURL: 'https://api.parsera.org/v1',
 						url: '/scrapers',
 						json: true,
 					});

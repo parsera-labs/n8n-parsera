@@ -51,7 +51,7 @@ export async function pollAsyncRunResult(
 	const credentials = await this.getCredentials('aiScraperApi');
 	const apiKey = credentials.apiKey as string;
 
-	const baseURL = 'http://localhost:8080/v1';
+	const baseURL = 'https://api.parsera.org/v1';
 	const pollUrl = `${baseURL}/scrapers/run_async/${runId}`;
 
 	const pollIntervalMs = 2000;
@@ -134,7 +134,7 @@ export async function pollAgentExtractResult(
 	const credentials = await this.getCredentials('aiScraperApi');
 	const apiKey = credentials.apiKey as string;
 
-	const baseURL = 'http://localhost:8080/v1';
+	const baseURL = 'https://api.parsera.org/v1';
 	const pollUrl = `${baseURL}/agent/extract/${taskId}`;
 
 	const pollIntervalMs = 2000;
