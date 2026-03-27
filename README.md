@@ -28,10 +28,13 @@ Follow the [installation guide](https://docs.n8n.io/integrations/community-nodes
 The Parsera AI Scraper node supports the following operations:
 
 *   **Extractor:**
-    *   **Extract from URL:** Provide a URL, and Parsera will fetch the content and extract data based on your defined attributes. Supports proxy usage and sending cookies.
-    *   **Parse HTML:** Provide raw HTML content, and Parsera will parse it to extract data based on your defined attributes.
+    *   **Extract URL:** Provide a URL, and Parsera will fetch the content and extract structured data based on your defined columns. Supports proxy usage and sending cookies.
+    *   **Parse HTML:** Provide raw HTML content, and Parsera will parse it to extract structured data based on your defined columns.
+    *   **Extract Markdown:** Convert a URL to clean markdown text. Supports proxy usage.
 *   **Scraping Agent:**
-    *   **Scraping Agent:** Utilize a pre-configured scraping agent on the Parsera platform to scrape a given URL. **Note:** The Parsera agent itself must be created separately via the [Parsera application](https://parsera.org) or Parsera API before it can be used by this n8n node operation. This operation uses a different base URL (`https://agents.parsera.org/v1`) and also supports proxy usage and sending cookies.
+    *   **Interact and Extract:** Use an AI agent that can navigate, interact with, and extract data from a webpage. Provide a URL and a prompt describing what data to extract. Optionally define an output schema to structure the results.
+*   **Reusable Scraper:**
+    *   **Run Configured Scraper:** Run a scraper that has been pre-configured on the [Parsera platform](https://parsera.org). Select from your existing scrapers, optionally override the URL, and use proxy/cookies. **Note:** Scrapers must be created separately via the Parsera application or API before they can be used here.
 
 ## Credentials
 
@@ -52,23 +55,23 @@ This node allows you to extract structured data from websites.
 
 **Key Parameters:**
 
-*   **Resource:** Choose between "Extractor" (for direct URL/HTML extraction) and "Scraping Agent" (for using pre-configured Parsera agents).
+*   **Resource:** Choose between "Extractor" (for direct URL/HTML/markdown extraction), "Scraping Agent" (for AI-driven navigation and extraction), or "Reusable Scraper" (for running pre-configured scrapers).
 *   **Operation:** Select the specific action based on the chosen resource.
 *   **URL/Content:** Provide the target URL or raw HTML content, depending on the operation.
-*   **Prompt:** Provide context and general instructions to scraper.
-*   **Attributes Input Mode (for Extractor Resource):**
-    *   **Fields:** Define attributes using a user-friendly interface with separate fields for Field Name, Type, and Field Description. This is the default and recommended for most UI-based configurations.
-    *   **JSON:** Define attributes as a single JSON object. This mode is powerful for programmatic use, AI tool integration, or complex schemas. The expected format is `{"your_field_name": {"description": "What to extract", "type": "string"}}`.
-*   **Attributes (for Extractor Resource):** Depending on the selected input mode, you will either fill out individual fields or provide a JSON object. At least one attribute is required.
-    *   **Field Name:** The key for the extracted data in the output (e.g., `productTitle`, `price`).
-    *   **Type:** The expected data type (e.g., `string`, `integer`, `number`, `boolean`, `list`, `object`, `any`).
-    *   **Field Description:** A natural language instruction telling the AI what data to look for (e.g., "The main title of the product page", "The discounted price of the item").
-*   **Mode (for Extractor Resource):**
+*   **Prompt:** Provide context and general instructions to the scraper (Extractor), or describe what data to extract (Scraping Agent).
+*   **Columns Input Mode (for Extractor and Scraping Agent):**
+    *   **Fields:** Define columns using a user-friendly interface with separate fields for Name, Type, and Column Prompt. This is the default and recommended for most UI-based configurations.
+    *   **JSON:** Define columns as a single JSON object. This mode is powerful for programmatic use, AI tool integration, or complex schemas. The expected format is `{"your_field_name": {"description": "What to extract", "type": "string"}}`.
+*   **Columns:** Depending on the selected input mode, you will either fill out individual fields or provide a JSON object.
+    *   **Name:** The key for the extracted data in the output (e.g., `productName`, `price`).
+    *   **Type:** The expected data type (`any`, `string`, `integer`, `number`, `bool`, `list`).
+    *   **Column Prompt:** A natural language instruction telling the AI what data to look for (e.g., "The main title of the product page").
+*   **Mode (for Extractor):**
     *   **Standard:** Balanced approach for speed and accuracy.
-    *   **Precision:** Focuses on higher accuracy, potentially at the cost of speed or resources.
+    *   **Precision:** Extract data hidden inside HTML structures with higher accuracy.
 *   **Proxy Country:** Optionally route your request through a proxy in a specific country to access geo-restricted content.
 *   **Cookies:** Optionally provide cookies as a JSON array to be sent with the request (e.g., for authenticated sessions). Format: `[{"name": "cookieName", "value": "cookieValue", "domain": ".example.com"}]`.
-*   **Agent Name (for Scraping Agent Resource):** The name of the pre-configured agent on the Parsera platform. This agent must have been created beforehand in your Parsera account.
+*   **Scraper Name (for Reusable Scraper):** Select a pre-configured scraper from your Parsera account. Must be created beforehand via the Parsera application or API.
 
 The output of the node will be a list of items containing the extracted data.
 
@@ -80,4 +83,12 @@ If you are new to n8n, you might find the [Try it out](https://docs.n8n.io/try-i
 *   [n8n community nodes documentation](https://docs.n8n.io/integrations/community-nodes/)
 *   [Parsera Website](https://parsera.org)
 *   [Parsera API Documentation](https://docs.parsera.org/api/getting-started/)
+
+## Version history
+
+*   **0.3.0** — Added Extract Markdown operation, Scraping Agent (Interact and Extract) resource, renamed old scraping agents to Reusable Scrapers, restructured resources, URL validation, polished operation names.
+*   **0.2.1** — Unified API, simplified scraper interface.
+*   **0.2.0** — Added templates, load available agents from API, rearranged actions.
+*   **0.1.6** — Documentation updates and naming tweaks.
+*   **0.1.5** — Fixed broken extractor URL, refactored to separate files.
 
