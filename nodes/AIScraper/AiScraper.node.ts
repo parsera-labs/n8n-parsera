@@ -53,7 +53,7 @@ export class AiScraper implements INodeType {
 				options: [
 					{ name: 'URL Extractor', value: 'url-extractor' },
 					{ name: 'Scraping Agent', value: 'scraping-agent' },
-					{ name: 'Reusable Scrapers', value: 'reusable-scrapers' },
+					{ name: 'Reusable Scraper', value: 'reusable-scrapers' },
 				],
 				default: 'url-extractor',
 			},
@@ -68,7 +68,7 @@ export class AiScraper implements INodeType {
 						name: 'Extract From URL',
 						value: 'scrapeUrl',
 						description: 'Provide URL and Data Description',
-						action: 'Extract From URL',
+						action: 'Extract from url',
 						routing: {
 							request: {
 								method: 'POST',
@@ -117,7 +117,7 @@ export class AiScraper implements INodeType {
 						name: 'Extract Markdown',
 						value: 'extractMarkdown',
 						description: 'Convert a URL to clean markdown text',
-						action: 'Extract Markdown From URL',
+						action: 'Extract markdown from url',
 						routing: {
 							request: {
 								method: 'POST',
@@ -151,7 +151,7 @@ export class AiScraper implements INodeType {
 						name: 'Navigate, Interact, Extract Any Data',
 						value: 'agentExtract',
 						description: 'Use AI agent to navigate, interact with and extract data from a webpage',
-						action: 'Navigate, Interact, Extract Any Data',
+						action: 'Navigate interact extract any data',
 						routing: {
 							request: {
 								method: 'POST',
@@ -184,7 +184,7 @@ export class AiScraper implements INodeType {
 						name: 'Run Scraper Configured on Parsera.org',
 						value: 'runScraper',
 						description: 'Run a scraper configured on parsera.org',
-						action: 'Run Scraper Configured on Parsera.org',
+						action: 'Run scraper configured on parsera org',
 						routing: {
 							request: {
 								method: 'POST',
@@ -407,7 +407,7 @@ export class AiScraper implements INodeType {
 				name: 'enableColumns',
 				type: 'boolean',
 				default: false,
-				description: 'Optionally define output columns to structure the extracted data',
+				description: 'Whether to define output columns to structure the extracted data',
 				displayOptions: {
 					show: {
 						operation: ['agentExtract'],
@@ -431,7 +431,7 @@ export class AiScraper implements INodeType {
 					},
 				],
 				default: 'fields',
-				description: 'Select how to define columns.',
+				description: 'Select how to define columns',
 				displayOptions: {
 					show: {
 						operation: ['agentExtract'],
@@ -445,7 +445,7 @@ export class AiScraper implements INodeType {
 				name: 'attributesFields',
 				type: 'fixedCollection',
 				default: { fieldValues: [] },
-				description: 'Define data fields to extract.',
+				description: 'Define data fields to extract',
 				placeholder: 'Add Column',
 				typeOptions: {
 					multipleValues: true,
@@ -505,7 +505,7 @@ export class AiScraper implements INodeType {
 				name: 'attributesJson',
 				type: 'json',
 				default: '{\n  "example_attribute_name": {\n    "description": "Optional: Natural language description of what data to extract.",\n    "type": "string"\n  }\n}',
-				description: 'Define columns as a JSON object.',
+				description: 'Define columns as a JSON object',
 				typeOptions: { rows: 8 },
 				displayOptions: {
 					show: {
