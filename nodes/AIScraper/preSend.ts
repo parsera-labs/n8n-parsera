@@ -5,7 +5,7 @@ import {
 } from 'n8n-workflow';
 import {
 	AttributesFieldsParameter,
-	TransformedAttributesMap,
+	TransformedAttributes,
 } from './types';
 import {
 	parseAttributesFromFields,
@@ -20,7 +20,7 @@ function addAttributesToBody(
 	const currentItemIndex = context.getItemIndex();
 	const node = context.getNode();
 	const attributesInputMode = context.getNodeParameter('attributesInputMode', currentItemIndex) as 'fields' | 'json';
-	let transformedAttributes: TransformedAttributesMap;
+	let transformedAttributes: TransformedAttributes;
 
 	switch (attributesInputMode) {
 		case 'fields':
@@ -40,7 +40,7 @@ function addAttributesToBody(
 			);
 	}
 
-	if (Object.keys(transformedAttributes).length === 0) {
+	if (transformedAttributes.length === 0) {
 		throw new NodeOperationError(
 			node,
 			'At least one attribute is required.',
@@ -137,6 +137,78 @@ export async function prepareParseRequestBody(
 	body.content = contentFromBody.trim();
 
 	addAttributesToBody(this, body);
+
+	return requestOptions;
+}
+
+export async function prepareAgentExtractRequestBody(
+	this: IExecuteSingleFunctions,
+	requestOptions: IHttpRequestOptions
+): Promise<IHttpRequestOptions> {
+	const node = this.getNode();
+	const currentItemIndex = this.getItemIndex();
+
+	if (!requestOptions.body || typeof requestOptions.body !== 'object') {
+		requestOptions.body = {};
+	}
+	const body = requestOptions.body as Record<string, any>;
+	body.source = "n8n";
+
+	// URL validation
+	const urlFromBody = body.url;
+	if (typeof urlFromBody !== 'string' || !urlFromBody.trim()) {
+		throw new NodeOperationError(node, 'URL is required.', { itemIndex: currentItemIndex });
+	}
+	body.url = urlFromBody.trim();
+
+	// Prompt (required for agent extract)
+	const prompt = this.getNodeParameter('agentPrompt', currentItemIndex) as string;
+	if (!prompt || !prompt.trim()) {
+		throw new NodeOperationError(node, 'Prompt is required for Agent Extract.', { itemIndex: currentItemIndex });
+	}
+	body.prompt = prompt.trim();
+
+	// Attributes (optional for agent extract)
+	try {
+		const attributesInputMode = this.getNodeParameter('attributesInputMode', currentItemIndex) as 'fields' | 'json';
+		let transformedAttributes: TransformedAttributes = [];
+
+		if (attributesInputMode === 'fields') {
+			const attributesFieldsParam = this.getNodeParameter('attributesFields', currentItemIndex) as AttributesFieldsParameter | undefined;
+			transformedAttributes = parseAttributesFromFields(this, attributesFieldsParam);
+		} else if (attributesInputMode === 'json') {
+			const attributesJsonParam = this.getNodeParameter('attributesJson', currentItemIndex);
+			transformedAttributes = parseAttributesFromJson(this, attributesJsonParam);
+		}
+
+		if (transformedAttributes.length > 0) {
+			body.attributes = transformedAttributes;
+		}
+	} catch (e) {
+		// Attributes are optional for agent extract, ignore parse errors if empty
+	}
+
+	return requestOptions;
+}
+
+export async function prepareExtractMarkdownRequestBody(
+	this: IExecuteSingleFunctions,
+	requestOptions: IHttpRequestOptions
+): Promise<IHttpRequestOptions> {
+	const node = this.getNode();
+	const currentItemIndex = this.getItemIndex();
+
+	if (!requestOptions.body || typeof requestOptions.body !== 'object') {
+		requestOptions.body = {};
+	}
+	const body = requestOptions.body as Record<string, any>;
+	body.source = "n8n";
+
+	const urlFromBody = body.url;
+	if (typeof urlFromBody !== 'string' || !urlFromBody.trim()) {
+		throw new NodeOperationError(node, 'URL is required.', { itemIndex: currentItemIndex });
+	}
+	body.url = urlFromBody.trim();
 
 	return requestOptions;
 }

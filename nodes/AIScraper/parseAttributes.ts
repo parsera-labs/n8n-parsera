@@ -4,29 +4,26 @@ import {
 	NodeOperationError,
 } from 'n8n-workflow';
 import {
-	AttributeDefinition,
+	AttributeItem,
 	AttributesFieldsParameter,
-	TransformedAttributesMap,
+	TransformedAttributes,
 } from './types';
 
 /**
  * Parses attributes defined using the 'Structured Fields' (fixedCollection) mode.
- * @param context - The execution context.
- * @param attributesFieldsParam - The parameter object containing fieldValues.
- * @returns A map of transformed attributes.
- * @throws NodeOperationError if validation fails.
+ * Returns a list of {name, type, description} objects matching the API's Attribute schema.
  */
 export function parseAttributesFromFields(
 	context: IExecuteSingleFunctions,
 	attributesFieldsParam: AttributesFieldsParameter | undefined,
-): TransformedAttributesMap {
+): TransformedAttributes {
 	const node = context.getNode();
 	const currentItemIndex = context.getItemIndex();
-	const transformedAttributes: TransformedAttributesMap = {};
+	const attributes: TransformedAttributes = [];
 	const fieldValues = attributesFieldsParam?.fieldValues ?? [];
 
 	if (fieldValues.length === 0 && !attributesFieldsParam) {
-		return {};
+		return [];
 	}
 
 	for (const [index, item] of fieldValues.entries()) {
@@ -61,32 +58,30 @@ export function parseAttributesFromFields(
 			);
 		}
 
-		transformedAttributes[fieldName] = { description: fieldDescription, type: item.fieldType };
+		attributes.push({ name: fieldName, description: fieldDescription, type: item.fieldType });
 	}
-	return transformedAttributes;
+	return attributes;
 }
 
 /**
  * Parses attributes defined using the 'JSON Object' mode.
- * @param context - The execution context.
- * @param attributesJsonInput - The JSON string or pre-parsed object for attributes.
- * @returns A map of transformed attributes.
- * @throws NodeOperationError if validation fails.
+ * Accepts JSON like: {"field_name": {"type": "string", "description": "..."}}
+ * Returns a list of {name, type, description} objects matching the API's Attribute schema.
  */
 export function parseAttributesFromJson(
 	context: IExecuteSingleFunctions,
 	attributesJsonInput: unknown,
-): TransformedAttributesMap {
+): TransformedAttributes {
 	const node = context.getNode();
 	const currentItemIndex = context.getItemIndex();
-	const transformedAttributes: TransformedAttributesMap = {};
+	const attributes: TransformedAttributes = [];
 
 	let parsedObject: IDataObject;
 
 	if (typeof attributesJsonInput === 'string') {
 		const trimmedJsonInput = attributesJsonInput.trim();
 		if (trimmedJsonInput === '') {
-			return {};
+			return [];
 		}
 		try {
 			parsedObject = JSON.parse(trimmedJsonInput);
@@ -105,9 +100,9 @@ export function parseAttributesFromJson(
 				{ itemIndex: currentItemIndex },
 			);
 		}
-		parsedObject = attributesJsonInput as IDataObject; // Already an object
+		parsedObject = attributesJsonInput as IDataObject;
 	} else if (attributesJsonInput === null || attributesJsonInput === undefined) {
-		return {};
+		return [];
 	}
 	else {
 		throw new NodeOperationError(
@@ -143,7 +138,7 @@ export function parseAttributesFromJson(
 			);
 		}
 
-		const attributeDetails = value as Partial<AttributeDefinition>;
+		const attributeDetails = value as Partial<AttributeItem>;
 
 		const descriptionFromPayload = attributeDetails.description;
 		let description: string | undefined;
@@ -168,7 +163,7 @@ export function parseAttributesFromJson(
 			);
 		}
 
-		transformedAttributes[fieldName] = { description: description ?? '', type };
+		attributes.push({ name: fieldName, description: description ?? '', type });
 	}
-	return transformedAttributes;
+	return attributes;
 }

@@ -1,9 +1,10 @@
-export type AttributeDefinition = {
+export type AttributeItem = {
+	name: string;
 	description?: string;
 	type: string;
 };
 
-export type TransformedAttributesMap = Record<string, AttributeDefinition>;
+export type TransformedAttributes = AttributeItem[];
 
 export type AttributeFieldItem = {
 	fieldName: string;

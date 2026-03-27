@@ -8,9 +8,11 @@ import { ProxyCountryList, ProxyCountryOption } from './proxy-countries.data';
 import {
 	prepareParseRequestBody,
 	prepareExtractRequestBody,
+	prepareExtractMarkdownRequestBody,
 	prepareScrapeRequestBody,
+	prepareAgentExtractRequestBody,
 } from './preSend';
-import { unpackResponseData } from './postReceive';
+import { unpackResponseData, pollAsyncRunResult, pollAgentExtractResult } from './postReceive';
 
 export class AiScraper implements INodeType {
 	description: INodeTypeDescription = {
@@ -36,7 +38,7 @@ export class AiScraper implements INodeType {
 			},
 		],
 		requestDefaults: {
-			baseURL: 'https://api.parsera.org/v1',
+			baseURL: 'http://localhost:8080/v1',
 			headers: {
 				'Content-Type': 'application/json',
 			},
@@ -49,23 +51,24 @@ export class AiScraper implements INodeType {
 				type: 'options',
 				noDataExpression: true,
 				options: [
-					{ name: 'New Scraper', value: 'new-scraper' },
-					{ name: 'Existing Scraper', value: 'existing-scraper' },
+					{ name: 'URL Extractor', value: 'url-extractor' },
+					{ name: 'Scraping Agent', value: 'scraping-agent' },
+					{ name: 'Reusable Scrapers', value: 'reusable-scrapers' },
 				],
-				default: 'new-scraper',
+				default: 'url-extractor',
 			},
 			{
 				displayName: 'Operation',
 				name: 'operation',
 				type: 'options',
 				noDataExpression: true,
-				displayOptions: { show: { resource: ['new-scraper'] } },
+				displayOptions: { show: { resource: ['url-extractor'] } },
 				options: [
 					{
-						name: 'Scrape URL',
+						name: 'Extract From URL',
 						value: 'scrapeUrl',
 						description: 'Provide URL and Data Description',
-						action: 'Scrape URL',
+						action: 'Extract From URL',
 						routing: {
 							request: {
 								method: 'POST',
@@ -110,6 +113,30 @@ export class AiScraper implements INodeType {
 							},
 						},
 					},
+					{
+						name: 'Extract Markdown',
+						value: 'extractMarkdown',
+						description: 'Convert a URL to clean markdown text',
+						action: 'Extract Markdown From URL',
+						routing: {
+							request: {
+								method: 'POST',
+								url: '/extract_markdown',
+								body: {
+									url: '={{$parameter["url"]}}',
+									proxy_country: '={{$parameter["proxyCountry"]}}',
+								},
+							},
+							send: {
+								preSend: [
+									prepareExtractMarkdownRequestBody,
+								],
+							},
+							output: {
+								postReceive: [unpackResponseData],
+							},
+						},
+					},
 				],
 				default: 'scrapeUrl',
 			},
@@ -118,28 +145,55 @@ export class AiScraper implements INodeType {
 				name: 'operation',
 				type: 'options',
 				noDataExpression: true,
-				displayOptions: {
-					show: {
-						resource: ['existing-scraper'],
-					}
-				},
+				displayOptions: { show: { resource: ['scraping-agent'] } },
 				options: [
 					{
-						name: 'Existing Scraper',
-						value: 'runScraper',
-						description: 'Scraper made in parsera.org with advanced features, such as scraping code generation',
-						action: 'Scraper made in parsera org with advanced features',
+						name: 'Navigate, Interact, Extract Any Data',
+						value: 'agentExtract',
+						description: 'Use AI agent to navigate, interact with and extract data from a webpage',
+						action: 'Navigate, Interact, Extract Any Data',
 						routing: {
 							request: {
 								method: 'POST',
-								baseURL: 'https://api.parsera.org/v1',
-								url: '/scrapers/run',
+								url: '/agent/extract',
+								body: {
+									url: '={{$parameter["url"]}}',
+								}
+							},
+							send: {
+								preSend: [
+									prepareAgentExtractRequestBody,
+								],
+							},
+							output: {
+								postReceive: [pollAgentExtractResult],
+							},
+						},
+					},
+				],
+				default: 'agentExtract',
+			},
+			{
+				displayName: 'Operation',
+				name: 'operation',
+				type: 'options',
+				noDataExpression: true,
+				displayOptions: { show: { resource: ['reusable-scrapers'] } },
+				options: [
+					{
+						name: 'Run Scraper Configured on Parsera.org',
+						value: 'runScraper',
+						description: 'Run a scraper configured on parsera.org',
+						action: 'Run Scraper Configured on Parsera.org',
+						routing: {
+							request: {
+								method: 'POST',
+								baseURL: 'http://localhost:8080/v1',
+								url: '/scrapers/run_async',
 								body: {
 									name: '={{$parameter["existingScraperName"]}}',
 									url: '={{$parameter["url"] || undefined}}',
 									proxy_country: '={{$parameter["proxyCountry"]}}',
-									// cookies are added by preSend function
-									// name will be converted to template_id in preSend
 								},
 							},
 							send: {
@@ -148,7 +202,7 @@ export class AiScraper implements INodeType {
 								],
 							},
 							output: {
-								postReceive: [unpackResponseData],
+								postReceive: [pollAsyncRunResult],
 							},
 						},
 					},
@@ -181,7 +235,7 @@ export class AiScraper implements INodeType {
 				placeholder: 'Enter URL',
 				displayOptions: {
 					show: {
-						operation: ['scrapeUrl'],
+						operation: ['scrapeUrl', 'extractMarkdown', 'agentExtract'],
 					},
 				},
 			},
@@ -227,6 +281,23 @@ export class AiScraper implements INodeType {
 					},
 				},
 				placeholder: 'Enter a prompt',
+				typeOptions: {
+					rows: 3,
+				},
+			},
+			{
+				displayName: 'Prompt',
+				name: 'agentPrompt',
+				type: 'string',
+				default: '',
+				required: true,
+				description: 'Describe what data to extract from the page',
+				placeholder: 'Extract all product names and prices',
+				displayOptions: {
+					show: {
+						operation: ['agentExtract'],
+					},
+				},
 				typeOptions: {
 					rows: 3,
 				},
@@ -324,8 +395,122 @@ export class AiScraper implements INodeType {
 				typeOptions: { rows: 8 },
 				displayOptions: {
 					show: {
-						resource: ['new-scraper'],
+						resource: ['url-extractor'],
 						operation: ['scrapeUrl', 'parseHtml'],
+						attributesInputMode: ['json'],
+					},
+				},
+			},
+			// Agent: optional output schema behind a toggle
+			{
+				displayName: 'Define Output Schema',
+				name: 'enableColumns',
+				type: 'boolean',
+				default: false,
+				description: 'Optionally define output columns to structure the extracted data',
+				displayOptions: {
+					show: {
+						operation: ['agentExtract'],
+					},
+				},
+			},
+			{
+				displayName: 'Columns Input Mode',
+				name: 'attributesInputMode',
+				type: 'options',
+				options: [
+					{
+						name: 'Fields',
+						value: 'fields',
+						description: 'Define in separate fields'
+					},
+					{
+						name: 'JSON',
+						value: 'json',
+						description: 'Define with a JSON Schema'
+					},
+				],
+				default: 'fields',
+				description: 'Select how to define columns.',
+				displayOptions: {
+					show: {
+						operation: ['agentExtract'],
+						enableColumns: [true],
+					},
+				},
+				noDataExpression: true,
+			},
+			{
+				displayName: 'Columns',
+				name: 'attributesFields',
+				type: 'fixedCollection',
+				default: { fieldValues: [] },
+				description: 'Define data fields to extract.',
+				placeholder: 'Add Column',
+				typeOptions: {
+					multipleValues: true,
+					sortable: true,
+				},
+				options: [
+					{
+						name: 'fieldValues',
+						displayName: 'Column Definitions',
+						values: [
+							{
+								displayName: 'Name',
+								name: 'fieldName',
+								type: 'string',
+								default: '',
+								required: true,
+								description: 'The name of the column (e.g., productName, price). This will be the key in the output JSON.',
+								placeholder: 'Enter field name',
+							},
+							{
+								displayName: 'Type',
+								name: 'fieldType',
+								type: 'options',
+								default: 'any',
+								required: true,
+								description: 'The type of the column',
+								options: [
+									{ name: 'Any', value: 'any', description: 'Any data type' },
+									{ name: 'Boolean', value: 'bool', description: 'True or false' },
+									{ name: 'Integer', value: 'integer', description: 'Whole number' },
+									{ name: 'List', value: 'list', description: 'An array of values' },
+									{ name: 'Number', value: 'number', description: 'Number with decimals' },
+									{ name: 'String', value: 'string', description: 'Text value' },
+								]
+							},
+							{
+								displayName: 'Column Prompt (Optional)',
+								name: 'fieldDescription',
+								type: 'string',
+								default: '',
+								description: 'Describe what data to place in this column',
+								placeholder: 'Enter column description'
+							},
+						],
+					},
+				],
+				displayOptions: {
+					show: {
+						operation: ['agentExtract'],
+						enableColumns: [true],
+						attributesInputMode: ['fields'],
+					},
+				},
+			},
+			{
+				displayName: 'Schema (JSON)',
+				name: 'attributesJson',
+				type: 'json',
+				default: '{\n  "example_attribute_name": {\n    "description": "Optional: Natural language description of what data to extract.",\n    "type": "string"\n  }\n}',
+				description: 'Define columns as a JSON object.',
+				typeOptions: { rows: 8 },
+				displayOptions: {
+					show: {
+						operation: ['agentExtract'],
+						enableColumns: [true],
 						attributesInputMode: ['json'],
 					},
 				},
@@ -342,7 +527,7 @@ export class AiScraper implements INodeType {
 				],
 				displayOptions: {
 					show: {
-						resource: ['new-scraper'],
+						resource: ['url-extractor'],
 						operation: ['scrapeUrl', 'parseHtml']
 					}
 				},
@@ -357,7 +542,7 @@ export class AiScraper implements INodeType {
 					value: country.value,
 				})),
 				description: 'Route request through a proxy in the selected country to access geo-specific content',
-				displayOptions: { show: { operation: ['scrapeUrl', 'runScraper'] } },
+				displayOptions: { show: { operation: ['scrapeUrl', 'extractMarkdown', 'runScraper'] } },
 			},
 			{
 				displayName: 'Cookies',
@@ -378,7 +563,7 @@ export class AiScraper implements INodeType {
 				try {
 					const scrapersResponse = await this.helpers.requestWithAuthentication.call(this, 'aiScraperApi', {
 						method: 'GET',
-						baseURL: 'https://api.parsera.org/v1',
+						baseURL: 'http://localhost:8080/v1',
 						url: '/scrapers',
 						json: true,
 					});
@@ -388,7 +573,7 @@ export class AiScraper implements INodeType {
 					const scraperOptions = scrapers.map((scraper: any) => ({
 						name: scraper.name || scraper.id,
 						value: scraper.id, // ID already includes "scraper:" prefix for old scrapers
-						description: scraper.id.startsWith('scraper:') ? 'Old Scraper' : 'Template',
+						description: scraper.id,
 					}));
 					
 					return scraperOptions;
