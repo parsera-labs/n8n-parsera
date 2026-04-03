@@ -4,9 +4,8 @@ import {
 	IN8nHttpFullResponse,
 	INodeExecutionData,
 	NodeOperationError,
+	sleep,
 } from 'n8n-workflow';
-
-declare function setTimeout(callback: () => void, ms: number): unknown;
 
 export async function unpackResponseData(
 	this: IExecuteSingleFunctions,
@@ -48,9 +47,6 @@ export async function pollAsyncRunResult(
 		);
 	}
 
-	const credentials = await this.getCredentials('aiScraperApi');
-	const apiKey = credentials.apiKey as string;
-
 	const baseURL = 'https://api.parsera.org/v1';
 	const pollUrl = `${baseURL}/scrapers/run_async/${runId}`;
 
@@ -59,14 +55,11 @@ export async function pollAsyncRunResult(
 	const startTime = Date.now();
 
 	while (Date.now() - startTime < maxWaitMs) {
-		await new Promise<void>((resolve) => { setTimeout(resolve, pollIntervalMs); });
+		await sleep(pollIntervalMs);
 
-		const pollResponse = await this.helpers.httpRequest({
+		const pollResponse = await this.helpers.httpRequestWithAuthentication.call(this, 'aiScraperApi', {
 			method: 'GET',
 			url: pollUrl,
-			headers: {
-				'X-API-KEY': apiKey,
-			},
 			json: true,
 		});
 
@@ -131,9 +124,6 @@ export async function pollAgentExtractResult(
 		);
 	}
 
-	const credentials = await this.getCredentials('aiScraperApi');
-	const apiKey = credentials.apiKey as string;
-
 	const baseURL = 'https://api.parsera.org/v1';
 	const pollUrl = `${baseURL}/agent/extract/${taskId}`;
 
@@ -142,14 +132,11 @@ export async function pollAgentExtractResult(
 	const startTime = Date.now();
 
 	while (Date.now() - startTime < maxWaitMs) {
-		await new Promise<void>((resolve) => { setTimeout(resolve, pollIntervalMs); });
+		await sleep(pollIntervalMs);
 
-		const pollResponse = await this.helpers.httpRequest({
+		const pollResponse = await this.helpers.httpRequestWithAuthentication.call(this, 'aiScraperApi', {
 			method: 'GET',
 			url: pollUrl,
-			headers: {
-				'X-API-KEY': apiKey,
-			},
 			json: true,
 		});
 

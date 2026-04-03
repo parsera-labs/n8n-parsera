@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-aiscraper",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "n8n node to call Parsera API for AI Scraping",
   "keywords": [
     "n8n-community-node-package",
@@ -50,9 +50,5 @@
   },
   "peerDependencies": {
     "n8n-workflow": "*"
-  },
-  "overrides": {
-    "undici": "^7.0.0",
-    "brace-expansion": "^5.0.5"
   }
 }

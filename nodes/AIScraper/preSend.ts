@@ -188,7 +188,8 @@ export async function prepareAgentExtractRequestBody(
 	body.prompt = prompt.trim();
 
 	// Attributes (optional for agent extract)
-	try {
+	const enableColumns = this.getNodeParameter('enableColumns', currentItemIndex) as boolean;
+	if (enableColumns) {
 		const attributesInputMode = this.getNodeParameter('attributesInputMode', currentItemIndex) as 'fields' | 'json';
 		let transformedAttributes: TransformedAttributes = [];
 
@@ -203,8 +204,6 @@ export async function prepareAgentExtractRequestBody(
 		if (transformedAttributes.length > 0) {
 			body.attributes = transformedAttributes;
 		}
-	} catch (e) {
-		// Attributes are optional for agent extract, ignore parse errors if empty
 	}
 
 	return requestOptions;
